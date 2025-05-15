@@ -1,0 +1,17 @@
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Enable diagnostics logs on App Service
+      azure.azcollection.azure_rm_webapp_diagnostic:
+        resource_group: "{{ lookup('env','RG_NAME') }}"
+        name: "{{ lookup('env','APP_NAME') }}"
+        logs:
+          http_logs:
+            file_system:
+              retention_in_days: 7
+
+    - name: Assign Key Vault Reader role to App Service identity
+      azure.azcollection.azure_rm_role_assignment:
+        scope: "{{ lookup('env','KEY_VAULT_ID') }}"
+        role_definition_name: "Key Vault Secrets User"
+        principal_id: "{{ lookup('env','APP_MANAGED_IDENTITY_PRINCIPAL_ID') }}"

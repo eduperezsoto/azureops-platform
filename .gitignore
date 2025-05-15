@@ -1,0 +1,35 @@
+# Virtualenv
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Build artifacts
+dist/
+build/
+
+# Environment variables
+*.env
+
+# Logs and reports
+*.log
+zap_report.html
+
+# Terraform state
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/crash.log
+
+# Ansible facts/retry
+ansible_facts/
+*.retry
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

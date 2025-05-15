@@ -1,0 +1,83 @@
+name: CI/CD DevSecOps on Azure
+
+# Se dispara con cada push a la rama main
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  security-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      # Clonar el repositorio
+      - uses: actions/checkout@v3
+
+      # Configurar Python 3.13
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      # Instalar dependencias del proyecto
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Escaneo estático de seguridad con Bandit
+      - name: Run SAST (Bandit)
+        run: |
+          pip install bandit
+          bandit -r app
+
+      # Validación de Terraform (tfsec)
+      - name: Validate Terraform
+        uses: aquasecurity/tfsec@v1
+        with:
+          args: ./terraform
+
+      # Arrancar la app Flask localmente para el escaneo dinámico
+      - name: Start Flask for DAST
+        run: |
+          flask --app wsgi run --host=0.0.0.0 --port=5000 &
+          sleep 5
+
+      # Escaneo dinámico con OWASP ZAP
+      - name: Run DAST (OWASP ZAP)
+        run: |
+          docker run --network host owasp/zap2docker-stable \
+            zap-baseline.py -t http://localhost:5000 -r zap_report.html
+
+      # Empaquetar la app para despliegue
+      - name: Archive for deployment
+        run: zip -r app.zip . -x "*.git*" -x "terraform/*" -x "ansible/*"
+
+      # Publicar el artefacto
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: flask-app
+          path: app.zip
+
+  deploy:
+    needs: security-and-build
+    runs-on: ubuntu-latest
+    steps:
+      # Descargar el artefacto generado previamente
+      - uses: actions/download-artifact@v3
+        with:
+          name: flask-app
+          path: .
+
+      # Autenticación en Azure con credenciales almacenadas en Secrets
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Desplegar el paquete ZIP a Azure App Service
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: my-flask-app        # Reemplaza por el nombre real de tu App Service
+          package: app.zip
