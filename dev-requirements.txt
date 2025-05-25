@@ -1,0 +1,5 @@
+pytest>=7.0.0
+pytest-cov>=4.0.0
+ansible>=2.13
+azure-cli>=2.50.0
+pandas>=1.0.0

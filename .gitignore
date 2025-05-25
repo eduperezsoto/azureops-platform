@@ -5,6 +5,7 @@ venv/
 # Python cache
 __pycache__/
 *.py[cod]
+.pytest_cache
 
 # Build artifacts
 dist/
@@ -33,3 +34,12 @@ ansible_facts/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# folders
+artifacts/
+tmp/

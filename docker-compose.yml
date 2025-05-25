@@ -1,0 +1,38 @@
+services:
+
+  web:
+    build: .
+    container_name: azureops_web
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: development
+      KEY_VAULT_URI: ""
+    command: flask run --host=0.0.0.0 --port=5000
+
+  tests:
+    build: .
+    container_name: azureops_tests
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace
+    environment:
+      PYTHONPATH: /workspace
+    command: >
+      sh -c "mkdir -p artifacts &&
+      pytest tests/unit --maxfail=1 --disable-warnings -q --cov=app --cov-report=term-missing | tee artifacts/pytest.log &&
+      pytest tests/integration --maxfail=1 --disable-warnings -q --cov=app --cov-report=term-missing | tee -a artifacts/pytest.log"
+
+  ansible:
+    image: williamyeh/ansible:debian10
+    container_name: azureops_ansible
+    volumes:
+      - ./:/workspace:rw
+    working_dir: /workspace
+    entrypoint: ["ansible-playbook"]
+    command: ["ansible/playbooks/configure_app_service.yml",
+              "-e", "RESOURCE_GROUP_NAME=devops-rg",
+              "-e", "APP_NAME=azureops-app",
+              "-e", "KEY_VAULT_NAME=azureops-kv",
+              "-e", "AZURE_SUBSCRIPTION_ID=<TU_SUB_ID>",
+              "-e", "AZURE_TENANT_ID=<TU_TENANT_ID>"]

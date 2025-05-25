@@ -1,0 +1,20 @@
+{
+  "if": {
+    "allOf": [
+      {
+        "field": "type",
+        "notIn": [
+          "Microsoft.KeyVault/vaults",
+          "Microsoft.Resources/subscriptions/resourceGroups"
+        ]
+      },
+      {
+        "field": "tags.Owner",
+        "exists": "false"
+      }
+    ]
+  },
+  "then": {
+    "effect": "deny"
+  }
+}

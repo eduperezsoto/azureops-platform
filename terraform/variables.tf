@@ -1,25 +1,31 @@
-variable "rg_name" {
-  type        = string
-  description = "Resource Group name"
-}
-
 variable "location" {
-  type        = string
   description = "Azure region"
+  type        = string
   default     = "West Europe"
 }
 
-variable "prefix" {
+variable "resource_group_name" {
+  description = "Name of the resource group"
   type        = string
-  description = "Prefix for naming"
 }
 
 variable "app_name" {
+  description = "Name for the App Service"
   type        = string
-  description = "App Service name"
+}
+
+variable "key_vault_name" {
+  description = "Name for the Key Vault"
+  type        = string
 }
 
 variable "my_secret_value" {
+  description = "Value for the demo secret MY_SECRET"
   type        = string
-  description = "Initial secret value"
+  default     = "DevSecretValue"
+}
+
+variable "owner_tag" {
+  description = "Value for the Owner tag on resources"
+  type        = string
 }

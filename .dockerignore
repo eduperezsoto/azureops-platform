@@ -1,0 +1,13 @@
+# Ignorar entorno virtual y caches
+.venv
+env/
+venv/
+__pycache__/
+*.pyc
+
+# Ignorar todo lo demás, pero eximir los requirements que necesitas
+*
+!app/
+!app/requirements.txt
+!dev-requirements.txt
+!ansible/requirements.yml
