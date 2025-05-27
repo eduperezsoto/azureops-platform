@@ -2,24 +2,26 @@ name: CI/CD DevSecOps
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   prep:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -38,25 +40,24 @@ jobs:
           pytest tests/integration --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml | tee -a artifacts/pytest.log
 
       - name: Upload pytest logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pytest-logs
           path: artifacts/pytest.log
 
-      - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@master
-        with:
-          projectKey: eduperezsoto_azureops-platform
-          organization: azureops-platform-org
-          token: ${{ secrets.SONAR_TOKEN }}
-          wait-for-quality-gate: true
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   iac_scan:
     needs: prep
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
       - name: Create artifacts directory
         run: mkdir -p artifacts
@@ -70,7 +71,7 @@ jobs:
           docker run --rm -v $PWD/terraform:/tf bridgecrew/checkov -o json > artifacts/checkov_results.json
 
       - name: Upload IaC scan artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: iac-scan-results
           path: |
@@ -88,10 +89,13 @@ jobs:
       TF_VAR_key_vault_name:     ${{ secrets.KEY_VAULT_NAME }}
       TF_VAR_owner_tag:          ${{ secrets.OWNER_TAG }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+            fetch-depth: 0 
 
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -113,7 +117,7 @@ jobs:
         run: echo "app_url=$(terraform -chdir=terraform output -raw app_url)" >> $GITHUB_OUTPUT
 
       - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.APP_NAME }}
           package: ./app
@@ -123,10 +127,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
-      - name: Login to Azure (Ansible job)
-        uses: azure/login@v1
+      - name: Login to Azure
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -149,17 +155,19 @@ jobs:
         run: ansible-playbook ansible/playbooks/configure_app_service.yml | tee artifacts/ansible.log
 
       - name: Upload Ansible logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ansible-logs
           path: artifacts/ansible.log
 
   dast:
-    needs: configure_app
+    needs: [deploy, configure_app]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
       - name: Create artifacts directory
         run: mkdir -p artifacts
@@ -175,7 +183,7 @@ jobs:
               -J zap_report.json
 
       - name: Upload ZAP report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zap-report
           path: |
@@ -186,13 +194,16 @@ jobs:
     needs: [deploy, dast]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+            fetch-depth: 0 
 
       - name: Create artifacts directory
         run: mkdir -p artifacts
 
       - name: Login to Azure for metrics
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -203,7 +214,7 @@ jobs:
         run: python3 scripts/collect_metrics.py | tee artifacts/metrics.log
 
       - name: Upload metrics artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: metrics-logs
           path: |
@@ -214,7 +225,7 @@ jobs:
         run: az policy state list --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} | tee artifacts/policy_compliance.json
 
       - name: Upload policy compliance
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: policy-compliance
           path: artifacts/policy_compliance.json
