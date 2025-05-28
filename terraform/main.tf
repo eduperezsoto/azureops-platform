@@ -27,6 +27,11 @@ resource "azurerm_key_vault" "kv" {
     secret_permissions = ["get", "list", "set", "delete"]
   }
 
+  network_acls {
+    default_action = "Deny"              # Deniega todo por defecto
+    bypass         = ["AzureServices"]   # Permite sólo a servicios de Azure
+  }
+  
   tags = {
     Owner = var.owner_tag
   }
@@ -48,8 +53,8 @@ resource "azurerm_app_service_plan" "plan" {
   reserved = true
   
   sku {
-    tier = "Standard"
-    size = "S1"
+    tier = "Basic"
+    size = "B1"
   }
   tags = {
     Owner = var.owner_tag

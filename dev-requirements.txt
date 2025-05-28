@@ -3,3 +3,4 @@ pytest-cov>=4.0.0
 ansible>=2.13
 azure-cli>=2.50.0
 pandas>=1.0.0
+junit2html>=2.2.0
