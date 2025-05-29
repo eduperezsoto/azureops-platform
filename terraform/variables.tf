@@ -25,8 +25,8 @@ variable "my_secret_value" {
   default     = "DevSecretValue"
 }
 
-variable "my_secret_expiry" {
-  description = "Expiry date for the demo secret MY_SECRET"
+variable "expiry_date" {
+  description = "Expiry date"
   type        = string
   default     = "2025-12-31T23:59:59Z"
 }

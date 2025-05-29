@@ -66,7 +66,7 @@ jobs:
       - name: TFSec scan
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          format: default,sarif
+          format: lovely,sarif
           additional_args: --out tests_results/tfsec_results
 
       - name: Checkov scan

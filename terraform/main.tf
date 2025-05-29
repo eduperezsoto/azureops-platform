@@ -21,12 +21,35 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
+resource "azurerm_network_security_group" "endpoint_nsg" {
+  name                = "${var.app_name}-endpoint-nsg"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  security_rule {
+    name                       = "Allow_Azure_Platform"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_address_prefix      = "AzureCloud"
+    destination_address_prefix = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+  }
+}
+
 # Endpoint subnet
 resource "azurerm_subnet" "endpoint" {
   name                 = "endpoint"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = ["10.0.1.0/24"]
+  address_prefixes     = ["10.0.1.0/24"]  
+}
+
+resource "azurerm_subnet_network_security_group_association" "nsg_association" {
+  subnet_id                 = azurerm_subnet.endpoint.id
+  network_security_group_id = azurerm_network_security_group.endpoint_nsg.id
 }
 
 # Key Vault
@@ -60,7 +83,7 @@ resource "azurerm_key_vault_secret" "my_secret" {
   key_vault_id = azurerm_key_vault.kv.id
 
   content_type    = "text/plain"            
-  expiration_date = var.my_secret_expiry  
+  expiration_date = var.expiry_date  
 }
 
 # 3. Private Endpoint + DNS privado para Key Vault
@@ -89,14 +112,94 @@ resource "azurerm_private_dns_zone_virtual_network_link" "kv_dns_link" {
   virtual_network_id    = azurerm_virtual_network.vnet.id
 }  
 
+# Storage account
+resource "azurerm_storage_account" "app_storage_account" {
+  name                     = "saapptfm"
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"
+  min_tls_version = "TLS1_2"
+  public_network_access_enabled = false
+  allow_nested_items_to_be_public = false
+  shared_access_key_enabled = false
+
+  network_rules {
+    default_action             = "Deny"                     # Bloquea todo por defecto
+    bypass                     = ["AzureServices"]         # Permite tráfico interno de Azure (p. ej. diagnósticos)
+    virtual_network_subnet_ids = [azurerm_subnet.endpoint.id] # Subnet donde correrá tu App/WebApp
+  }
+
+  queue_properties {
+    logging {
+      delete                = true
+      read                  = true
+      write                 = true
+      version               = "1.0"
+      retention_policy_days = 10
+    }
+  }
+
+  sas_policy {
+    expiration_period = "01.12:00:00"
+  }
+
+  blob_properties {
+    delete_retention_policy {
+      days = 7
+    }
+  }
+}
+
+resource "azurerm_key_vault_access_policy" "app_kv_policy" {
+  key_vault_id = azurerm_key_vault.kv.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = azurerm_linux_web_app.app.identity[0].principal_id
+  secret_permissions = ["get", "list"]
+}
+
+
+resource "azurerm_key_vault_key" "kv_key" {
+  name         = "tfex-key"
+  key_vault_id = azurerm_key_vault.kv.id
+  key_type     = "RSA-HSM"
+  key_size     = 2048
+  key_opts     = ["decrypt", "encrypt", "sign", "unwrapKey", "verify", "wrapKey"]
+  expiration_date = var.expiry_date
+
+  depends_on = [
+    azurerm_key_vault_access_policy.app_kv_policy
+  ]
+}
+
+resource "azurerm_storage_account_customer_managed_key" "ok_cmk" {
+  storage_account_id = azurerm_storage_account.app_storage_account.id
+  key_vault_id       = azurerm_key_vault.kv.id
+  key_name           = azurerm_key_vault_key.kv_key.name
+}
+
+resource "azurerm_private_endpoint" "sa_pe" {
+  name                = "sa-app-pe"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  subnet_id           = azurerm_subnet.endpoint.id
+
+  private_service_connection {
+    name                           = "sa-app-privatelink"
+    private_connection_resource_id = azurerm_storage_account.app_storage_account.id
+    is_manual_connection           = false
+  }
+}
+
 # App Service Plan
-resource "azurerm_service_plan" "plan" {
+resource "azurerm_service_plan" "app_plan" {
   name                = "${var.app_name}-plan"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   os_type             = "Linux"
-  sku_name            = "B1"
+  sku_name            = "P1v3"
   zone_balancing_enabled = true
+  worker_count = 2
 
   tags = {
     Owner = var.owner_tag
@@ -108,11 +211,37 @@ resource "azurerm_linux_web_app" "app" {
   name                = var.app_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  service_plan_id     = azurerm_service_plan.plan.id
+  service_plan_id     = azurerm_service_plan.app_plan.id
+  public_network_access_enabled = false
+  https_only = true
+  client_certificate_enabled           = true
+  client_certificate_mode              = "Required"
+
+  logs {
+    detailed_error_messages = true
+    failed_request_tracing = true
+    http_logs {
+      file_system {
+        retention_in_mb   = 35            # Tamaño máx de logs en disco (MB) antes de rotar
+        retention_in_days = 7             # Días de retención de logs de HTTP en filesystem
+      }
+    }
+  }
+
+  storage_account {
+    name = "test_name"
+    account_name = azurerm_storage_account.app_storage_account.name
+    access_key   = azurerm_storage_account.app_storage_account.primary_access_key
+    share_name   = azurerm_storage_share.app_storage_account.name
+    mount_path   = "/data"
+    type = "AzureFiles"
+  }
 
   site_config {
     health_check_path  = "/health"                                                         
-    http2_enabled      = true                                   
+    http2_enabled      = true 
+    always_on = true     
+    ftps_state = "Disabled"       
   }
 
   identity {
@@ -141,12 +270,6 @@ resource "azurerm_key_vault_access_policy" "current" {
   secret_permissions = ["get","list","set","delete"]
 }
 
-resource "azurerm_key_vault_access_policy" "app_kv_policy" {
-  key_vault_id = azurerm_key_vault.kv.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = azurerm_linux_web_app.app.identity[0].principal_id
-  secret_permissions = ["get", "list"]
-}
 
 # Custom Policy: Require Owner Tag
 resource "azurerm_policy_definition" "require_owner_tag" {
