@@ -30,7 +30,7 @@ def fetch_secret(name: str):
 
 @app.route("/")
 def index():
-    loaded, value = fetch_secret("MY_SECRET")
+    loaded, value = fetch_secret("MYSECRET")
     return jsonify({
         "message": "Hello, world!",
         "secret_loaded": loaded,

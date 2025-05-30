@@ -1,10 +1,21 @@
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "=4.31.0"
+    }
+  }
+}
+
 provider "azurerm" {
   features {}
+  storage_use_azuread = true  
 }
 
 data "azurerm_client_config" "current" {}
+data "azurerm_subscription" "primary" {}
 
-# Resource Group
+####### RESOURCE GROUP
 resource "azurerm_resource_group" "rg" {
   name     = var.resource_group_name
   location = var.location
@@ -13,7 +24,7 @@ resource "azurerm_resource_group" "rg" {
   }
 }
 
-# Vnet
+####### VIRTUAL NET
 resource "azurerm_virtual_network" "vnet" {
   name                = "example-network"
   address_space       = ["10.0.0.0/16"]
@@ -21,6 +32,7 @@ resource "azurerm_virtual_network" "vnet" {
   resource_group_name = azurerm_resource_group.rg.name
 }
 
+####### NSG
 resource "azurerm_network_security_group" "endpoint_nsg" {
   name                = "${var.app_name}-endpoint-nsg"
   location            = azurerm_resource_group.rg.location
@@ -39,20 +51,21 @@ resource "azurerm_network_security_group" "endpoint_nsg" {
   }
 }
 
-# Endpoint subnet
-resource "azurerm_subnet" "endpoint" {
-  name                 = "endpoint"
+####### SUBNET
+resource "azurerm_subnet" "subnet" {
+  name                 = "subnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
+  service_endpoints    = ["Microsoft.Storage", "Microsoft.KeyVault"]
   address_prefixes     = ["10.0.1.0/24"]  
 }
 
 resource "azurerm_subnet_network_security_group_association" "nsg_association" {
-  subnet_id                 = azurerm_subnet.endpoint.id
+  subnet_id                 = azurerm_subnet.subnet.id
   network_security_group_id = azurerm_network_security_group.endpoint_nsg.id
 }
 
-# Key Vault
+####### KEY VAULT
 resource "azurerm_key_vault" "kv" {
   name                        = var.key_vault_name
   location                    = azurerm_resource_group.rg.location
@@ -66,7 +79,7 @@ resource "azurerm_key_vault" "kv" {
 
   network_acls {
     default_action = "Deny"             
-    bypass         = ["AzureServices"]  
+    bypass         = "AzureServices"
   }
 
   access_policy = []
@@ -76,30 +89,22 @@ resource "azurerm_key_vault" "kv" {
   }
 }
 
-# Secret con content-type y expiry
-resource "azurerm_key_vault_secret" "my_secret" {
-  name         = "MY_SECRET"
-  value        = var.my_secret_value
-  key_vault_id = azurerm_key_vault.kv.id
-
-  content_type    = "text/plain"            
-  expiration_date = var.expiry_date  
-}
-
-# 3. Private Endpoint + DNS privado para Key Vault
-resource "azurerm_private_endpoint" "kv_pe" {
+# Key Vault endpoint
+resource "azurerm_private_endpoint" "kv_endpoint" {
   name                = "${var.key_vault_name}-pe"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  subnet_id           = azurerm_subnet.endpoint.id
+  subnet_id           = azurerm_subnet.subnet.id
 
   private_service_connection {
     name                           = "kv-privatelink"
     private_connection_resource_id = azurerm_key_vault.kv.id
     is_manual_connection           = false
+    subresource_names              = ["vault"]
   }
 }
 
+# Key Vault Dns
 resource "azurerm_private_dns_zone" "kv_dns" {
   name                = "privatelink.vaultcore.azure.net"
   resource_group_name = azurerm_resource_group.rg.name
@@ -112,7 +117,22 @@ resource "azurerm_private_dns_zone_virtual_network_link" "kv_dns_link" {
   virtual_network_id    = azurerm_virtual_network.vnet.id
 }  
 
-# Storage account
+# Creacion de mysecret
+resource "azurerm_key_vault_secret" "my_secret" {
+  name         = "MYSECRET"
+  value        = var.my_secret_value
+  key_vault_id = azurerm_key_vault.kv.id
+
+  content_type    = "text/plain"            
+  expiration_date = var.expiry_date  
+
+  depends_on = [
+    azurerm_key_vault_access_policy.current
+  ]
+}
+
+
+####### STORAGE ACCOUNT
 resource "azurerm_storage_account" "app_storage_account" {
   name                     = "saapptfm"
   resource_group_name      = azurerm_resource_group.rg.name
@@ -127,17 +147,7 @@ resource "azurerm_storage_account" "app_storage_account" {
   network_rules {
     default_action             = "Deny"                     # Bloquea todo por defecto
     bypass                     = ["AzureServices"]         # Permite tráfico interno de Azure (p. ej. diagnósticos)
-    virtual_network_subnet_ids = [azurerm_subnet.endpoint.id] # Subnet donde correrá tu App/WebApp
-  }
-
-  queue_properties {
-    logging {
-      delete                = true
-      read                  = true
-      write                 = true
-      version               = "1.0"
-      retention_policy_days = 10
-    }
+    virtual_network_subnet_ids = [azurerm_subnet.subnet.id] # Subnet donde correrá tu App/WebApp
   }
 
   sas_policy {
@@ -151,13 +161,53 @@ resource "azurerm_storage_account" "app_storage_account" {
   }
 }
 
+# Asigno el rol de data contributor
+resource "azurerm_role_assignment" "blob_data_contributor" {
+  scope                = azurerm_storage_account.app_storage_account.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# SA queue properties
+resource "azurerm_storage_account_queue_properties" "sa_properties" {
+  storage_account_id = azurerm_storage_account.app_storage_account.id
+  logging {
+      delete                = true
+      read                  = true
+      write                 = true
+      version               = "1.0"
+      retention_policy_days = 10
+    }
+}
+
+# SA endpoind
+resource "azurerm_private_endpoint" "sa_endpoint" {
+  name                = "sa-app-pe"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  subnet_id           = azurerm_subnet.subnet.id
+
+  private_service_connection {
+    name                           = "sa-app-privatelink"
+    private_connection_resource_id = azurerm_storage_account.app_storage_account.id
+    is_manual_connection           = false
+    subresource_names              = ["blob", "file"]
+  }
+}
+
+# CMK app
+resource "azurerm_storage_account_customer_managed_key" "ok_cmk" {
+  storage_account_id = azurerm_storage_account.app_storage_account.id
+  key_vault_id       = azurerm_key_vault.kv.id
+  key_name           = azurerm_key_vault_key.kv_key.name
+}
+
 resource "azurerm_key_vault_access_policy" "app_kv_policy" {
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = azurerm_linux_web_app.app.identity[0].principal_id
-  secret_permissions = ["get", "list"]
+  secret_permissions = ["Get", "List"]
 }
-
 
 resource "azurerm_key_vault_key" "kv_key" {
   name         = "tfex-key"
@@ -172,32 +222,13 @@ resource "azurerm_key_vault_key" "kv_key" {
   ]
 }
 
-resource "azurerm_storage_account_customer_managed_key" "ok_cmk" {
-  storage_account_id = azurerm_storage_account.app_storage_account.id
-  key_vault_id       = azurerm_key_vault.kv.id
-  key_name           = azurerm_key_vault_key.kv_key.name
-}
-
-resource "azurerm_private_endpoint" "sa_pe" {
-  name                = "sa-app-pe"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  subnet_id           = azurerm_subnet.endpoint.id
-
-  private_service_connection {
-    name                           = "sa-app-privatelink"
-    private_connection_resource_id = azurerm_storage_account.app_storage_account.id
-    is_manual_connection           = false
-  }
-}
-
-# App Service Plan
+####### App Service Plan
 resource "azurerm_service_plan" "app_plan" {
   name                = "${var.app_name}-plan"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   os_type             = "Linux"
-  sku_name            = "P1v3"
+  sku_name            = "P1v2"
   zone_balancing_enabled = true
   worker_count = 2
 
@@ -206,7 +237,13 @@ resource "azurerm_service_plan" "app_plan" {
   }
 }
 
-# App Service con Auth, Client Cert y HTTP/2
+####### App Service
+resource "azurerm_storage_share" "sa_share" {
+  name               = "appshare"
+  storage_account_id = azurerm_storage_account.app_storage_account.id
+  quota              = 5
+}
+
 resource "azurerm_linux_web_app" "app" {
   name                = var.app_name
   location            = azurerm_resource_group.rg.location
@@ -232,13 +269,14 @@ resource "azurerm_linux_web_app" "app" {
     name = "test_name"
     account_name = azurerm_storage_account.app_storage_account.name
     access_key   = azurerm_storage_account.app_storage_account.primary_access_key
-    share_name   = azurerm_storage_share.app_storage_account.name
+    share_name   = azurerm_storage_share.sa_share.name
     mount_path   = "/data"
     type = "AzureFiles"
   }
 
   site_config {
-    health_check_path  = "/health"                                                         
+    health_check_path  = "/health" 
+    health_check_eviction_time_in_min = 5                                                        
     http2_enabled      = true 
     always_on = true     
     ftps_state = "Disabled"       
@@ -262,14 +300,19 @@ resource "azurerm_linux_web_app" "app" {
   }
 }
 
-# Access Policy 
+####### Access Policy 
 resource "azurerm_key_vault_access_policy" "current" {
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = data.azurerm_client_config.current.object_id
-  secret_permissions = ["get","list","set","delete"]
+  secret_permissions = ["Get","List","Set","Delete"]
 }
 
+resource "azurerm_role_assignment" "policy_contributor" {
+  scope                = data.azurerm_subscription.primary.id
+  role_definition_name = "Policy Contributor"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
 
 # Custom Policy: Require Owner Tag
 resource "azurerm_policy_definition" "require_owner_tag" {
@@ -278,7 +321,8 @@ resource "azurerm_policy_definition" "require_owner_tag" {
   mode         = "Indexed"
   display_name = "Require Owner Tag on all resources"
   description  = "Denies creation of any resource without the 'Owner' tag."
-  policy_rule  = file("${path.module}/azure-policies/require_tags.json")
+  policy_rule  = file("${path.module}/../azure-policies/require_tags.json")
+  depends_on = [azurerm_role_assignment.policy_contributor]
 }
 
 resource "azurerm_resource_group_policy_assignment" "rg_owner_tag" {
@@ -286,9 +330,11 @@ resource "azurerm_resource_group_policy_assignment" "rg_owner_tag" {
   resource_group_id    = azurerm_resource_group.rg.id
   policy_definition_id = azurerm_policy_definition.require_owner_tag.id
 
-  parameters = {
-    tagName = { 
-      value = var.owner_tag 
-    }
+  parameters = <<PARAMS
+{
+  "tagName": {
+    "value": "${var.owner_tag}"
   }
+}
+PARAMS
 }

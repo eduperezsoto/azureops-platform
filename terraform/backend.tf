@@ -1,7 +1,7 @@
 terraform {
   backend "azurerm" {
     resource_group_name   = "rg-terraform-backend"
-    storage_account_name  = "saterraformstatetfm"
+    storage_account_name  = "saterraformbackendtfm"
     container_name        = "tfstate"
     key                   = "azureops-platform.terraform.tfstate"
   }
