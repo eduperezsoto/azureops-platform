@@ -9,6 +9,12 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "infra_base_resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
+  default     = "rg-infra-base"
+}
+
 variable "app_name" {
   description = "Name for the App Service"
   type        = string

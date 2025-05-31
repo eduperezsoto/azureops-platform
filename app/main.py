@@ -43,7 +43,6 @@ def health():
     return jsonify({"status": "healthy"}), 200
 
 
-# Nueva ruta: devuelve solo información del secreto
 @app.route("/secret")
 def secret():
     loaded, value = fetch_secret("MY_SECRET")
