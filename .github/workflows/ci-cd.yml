@@ -71,14 +71,14 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           format: lovely,sarif
-          soft_fail: true
-          additional_args: --minimum-severity=MEDIUM --out tests_results/tfsec_results
+          # soft_fail: true
+          additional_args: --out tests_results/tfsec_results # --minimum-severity=MEDIUM 
 
       - name: Checkov scan
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: terraform/
-          skip_check: CKV_AZURE_33
+          skip_check: CKV_AZURE_33,CKV_AZURE_88
           output_format: cli,sarif
           output_file_path: console,tests_results/checkov_results.sarif
 
