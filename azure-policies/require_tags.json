@@ -9,8 +9,8 @@
         ]
       },
       {
-        "field": "tags.Owner",
-        "exists": "false"
+        "field": "[concat('tags[', parameters('tagName'), ']')]",
+        "exists": false
       }
     ]
   },

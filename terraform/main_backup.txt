@@ -72,9 +72,176 @@ resource "azurerm_subnet_network_security_group_association" "nsg_association" {
 
 ####### KEY VAULT
 data "azurerm_key_vault" "kv_base" {
-  name                = "kv-base"
+  name                = "kv-base"       # Ajusta al nombre exacto de tu Key Vault
   resource_group_name = var.infra_base_resource_group_name
 }
+
+
+# resource "azurerm_key_vault" "kv" {
+#   name                        = var.key_vault_name
+#   location                    = azurerm_resource_group.rg.location
+#   resource_group_name         = azurerm_resource_group.rg.name
+#   tenant_id                   = data.azurerm_client_config.current.tenant_id
+#   sku_name                    = "standard"
+#   purge_protection_enabled    = true
+#   soft_delete_retention_days  = 90
+#   public_network_access_enabled = false 
+
+#   network_acls {
+#     default_action = "Deny"             
+#     bypass         = "AzureServices"
+#   }
+
+#   access_policy = []
+
+#   tags = {
+#     Owner = var.owner_tag
+#   }
+# }
+
+# # Key Vault endpoint
+# resource "azurerm_private_endpoint" "kv_endpoint" {
+#   name                = "${var.key_vault_name}-endpoint"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+#   subnet_id           = azurerm_subnet.subnet.id
+
+#   private_service_connection {
+#     name                           = "kv-app-privatelink"
+#     private_connection_resource_id = azurerm_key_vault.kv.id
+#     is_manual_connection           = false
+#     subresource_names              = ["vault"]
+#   }
+# }
+
+# # Key Vault Dns
+# resource "azurerm_private_dns_zone" "kv_dns" {
+#   name                = "privatelink.vaultcore.azure.net"
+#   resource_group_name = azurerm_resource_group.rg.name
+# }
+
+# # Asociacion dns y vnet
+# resource "azurerm_private_dns_zone_virtual_network_link" "kv_dns_link" {
+#   name                  = "kv-dns-link"
+#   resource_group_name   = azurerm_resource_group.rg.name
+#   private_dns_zone_name = azurerm_private_dns_zone.kv_dns.name
+#   virtual_network_id    = azurerm_virtual_network.vnet.id
+# }  
+
+# # Registro endpoint en dns
+# resource "azurerm_private_dns_a_record" "kv_record" {
+#   name                = replace(var.key_vault_name, "-", "")
+#   zone_name           = azurerm_private_dns_zone.kv_dns.name
+#   resource_group_name = azurerm_resource_group.rg.name
+#   ttl                 = 300
+#   records             = [
+#     azurerm_private_endpoint.kv_endpoint.private_service_connection[0].private_ip_address
+#   ]
+# }
+
+# resource "azurerm_key_vault_access_policy" "current" {
+#   key_vault_id = azurerm_key_vault.kv.id
+#   tenant_id    = data.azurerm_client_config.current.tenant_id
+#   object_id    = data.azurerm_client_config.current.object_id
+#   secret_permissions = ["Get","List","Set","Delete"]
+#   key_permissions    = ["Get","Create","Delete","List"]
+# }
+
+# Creacion de mysecret
+# resource "azurerm_key_vault_secret" "my_secret" {
+#   name         = "MYSECRET"
+#   value        = var.my_secret_value
+#   key_vault_id = azurerm_key_vault.kv.id
+
+#   content_type    = "text/plain"            
+#   expiration_date = var.expiry_date  
+
+#   depends_on = [
+#     azurerm_key_vault_access_policy.current
+#   ]
+# }
+
+
+####### STORAGE ACCOUNT
+# resource "azurerm_storage_account" "app_storage_account" {
+#   name                     = "saapp"
+#   resource_group_name      = azurerm_resource_group.rg.name
+#   location                 = azurerm_resource_group.rg.location
+#   account_tier             = "Standard"
+#   account_replication_type = "GRS"
+#   min_tls_version = "TLS1_2"
+#   public_network_access_enabled = false
+#   allow_nested_items_to_be_public = false
+#   shared_access_key_enabled = false
+
+#   network_rules {
+#     default_action             = "Deny"                     # Bloquea todo por defecto
+#     bypass                     = ["AzureServices"]          # Permite tráfico interno de Azure (p. ej. diagnósticos)
+#     virtual_network_subnet_ids = [azurerm_subnet.subnet.id] # Subnet donde correrá tu App/WebApp
+#   }
+
+#   sas_policy {
+#     expiration_period = "01.12:00:00"
+#   }
+
+#   blob_properties {
+#     delete_retention_policy {
+#       days = 7
+#     }
+#   }
+# }
+
+# # SA queue properties
+# resource "azurerm_storage_account_queue_properties" "sa_properties" {
+#   storage_account_id = azurerm_storage_account.app_storage_account.id
+#   logging {
+#       delete                = true
+#       read                  = true
+#       write                 = true
+#       version               = "1.0"
+#       retention_policy_days = 10
+#     }
+# }
+
+# # SA endpoind
+# resource "azurerm_private_endpoint" "sa_endpoint" {
+#   name                = "${azurerm_storage_account.app_storage_account.name}-endpoint"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+#   subnet_id           = azurerm_subnet.subnet.id
+
+#   private_service_connection {
+#     name                           = "sa-app-privatelink"
+#     private_connection_resource_id = azurerm_storage_account.app_storage_account.id
+#     is_manual_connection           = false
+#     subresource_names              = ["blob"]
+#   }
+# }
+
+# # Private DNS Zone para file
+# resource "azurerm_private_dns_zone" "sa_dns" {
+#   name                = "privatelink.blob.core.windows.net"
+#   resource_group_name = azurerm_resource_group.rg.name
+# }
+
+# # Asociacion dns y vnet
+# resource "azurerm_private_dns_zone_virtual_network_link" "sa_dns_link" {
+#   name                  = "sa-dns-link"
+#   resource_group_name   = azurerm_resource_group.rg.name
+#   private_dns_zone_name = azurerm_private_dns_zone.sa_dns.name
+#   virtual_network_id    = azurerm_virtual_network.vnet.id
+# }  
+
+# # Registro endpoint en dns
+# resource "azurerm_private_dns_a_record" "sa_record" {
+#   name                = replace(azurerm_storage_account.app_storage_account.name, "-", "")
+#   zone_name           = azurerm_private_dns_zone.sa_dns.name
+#   resource_group_name = azurerm_resource_group.rg.name
+#   ttl                 = 300
+#   records             = [
+#     azurerm_private_endpoint.sa_endpoint.private_service_connection[0].private_ip_address
+#   ]
+# }
 
 
 ####### App Service Plan
@@ -178,9 +345,64 @@ resource "azurerm_private_dns_a_record" "app_record" {
   ]
 }
 
-######## APPGW
 
-# obtenemos el secret (que contiene el PFX) dentro de ese Key Vault
+###### CMK blob storage
+# # Asigno rol para que la app tenga permisos en el blob
+# resource "azurerm_role_assignment" "blob_data_contributor" {
+#   scope                = azurerm_storage_account.app_storage_account.id
+#   role_definition_name = "Storage Blob Data Contributor"
+#   principal_id         = azurerm_linux_web_app.app.identity[0].principal_id
+
+#   depends_on = [
+#     azurerm_linux_web_app.app
+#   ]
+# }
+
+# # Permitir a la app listar y obtener secretos. Tambien se permite que pueda envolver y desenvolver la clave para cifrar datos
+# resource "azurerm_key_vault_access_policy" "app_kv_policy" {
+#   key_vault_id = azurerm_key_vault.kv.id
+#   tenant_id    = data.azurerm_client_config.current.tenant_id
+#   object_id    = azurerm_linux_web_app.app.identity[0].principal_id
+  
+#   secret_permissions = ["Get", "List"]
+#   key_permissions = ["Get", "UnwrapKey", "WrapKey"]
+# }
+
+
+# # Cifrar sa con una clave que vive en el kv
+# resource "azurerm_key_vault_key" "kv_key" {
+#   name         = "kv-key"
+#   key_vault_id = azurerm_key_vault.kv.id
+#   key_type     = "RSA-HSM"
+#   key_size     = 2048
+#   key_opts     = ["decrypt", "encrypt", "sign", "unwrapKey", "verify", "wrapKey"]
+#   expiration_date = var.expiry_date
+
+#   depends_on = [
+#     azurerm_key_vault_access_policy.app_kv_policy
+#   ]
+# }
+
+# # Asocia la key a la storage account para que pueda cifrar datos
+# resource "azurerm_storage_account_customer_managed_key" "ok_cmk" {
+#   storage_account_id = azurerm_storage_account.app_storage_account.id
+#   key_vault_id       = azurerm_key_vault.kv.id
+#   key_name           = azurerm_key_vault_key.kv_key.name
+
+#   depends_on = [
+#     azurerm_key_vault_key.kv_key
+#   ]
+# }
+
+
+######## APPGW
+# resource "azurerm_role_assignment" "terraform_read_kv" {
+#   scope                = data.azurerm_key_vault.kv_base.id
+#   role_definition_name = "Key Vault Certificates Officer"
+#   principal_id         = data.azurerm_client_config.current.object_id
+# }
+
+# 2. Luego, obtenemos el secret (que contiene el PFX) dentro de ese Key Vault
 data "azurerm_key_vault_certificate" "appgw_ssl_cert" {
   name         = "ssl-appgw-dev"                # El mismo nombre que pusiste al generarlo (ssl-appgw-dev)
   key_vault_id = data.azurerm_key_vault.kv_base.id
@@ -209,7 +431,7 @@ resource "azurerm_network_security_group" "appgw_nsg" {
     source_address_prefix      = "GatewayManager"
     destination_address_prefix = "*"
     source_port_range          = "*"
-    destination_port_ranges     = ["65200-65535"]
+    destination_port_range     = "*"
   }
 
   # Permitir tráfico público desde Internet a puertos 80/443 (o los que uses)
@@ -237,10 +459,6 @@ resource "azurerm_network_security_group" "appgw_nsg" {
     source_port_range          = "*"
     destination_port_range     = "*"
   }
-
-  tags = {
-    Owner = var.owner_tag
-  }
 }
 
 resource "azurerm_subnet_network_security_group_association" "appgw_nsg_association" {
@@ -266,6 +484,7 @@ resource "azurerm_public_ip" "agw_frontend_pip" {
   sku                 = "Standard"
 }
 
+
 # resource "azurerm_user_assigned_identity" "appgw_msi" {
 #   name                = "${var.app_name}-appgw-msi"
 #   location            = azurerm_resource_group.rg.location
@@ -278,10 +497,6 @@ resource "azurerm_public_ip" "agw_frontend_pip" {
 #   principal_id         = azurerm_user_assigned_identity.appgw_msi.principal_id
 # }
 
-data "azurerm_user_assigned_identity" "appgw_msi" {
-  name                = "${var.app_name}-appgw-msi" 
-  resource_group_name = var.infra_base_resource_group_name
-}
 
 # Application Gateway WAF v2
 resource "azurerm_application_gateway" "appgw" {
@@ -297,7 +512,7 @@ resource "azurerm_application_gateway" "appgw" {
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [data.azurerm_user_assigned_identity.appgw_msi.id]
+    identity_ids = [azurerm_user_assigned_identity.appgw_msi.id]
   }
 
   gateway_ip_configuration {
@@ -323,7 +538,7 @@ resource "azurerm_application_gateway" "appgw" {
   ssl_policy {
     policy_type          = "Predefined"
     policy_name          = "AppGwSslPolicy20220101S"  # fuerza TLS 1.2+
-    # min_protocol_version = "TLSv1_2"
+    min_protocol_version = "TLSv1_2"
   }
 
   backend_address_pool {
@@ -371,71 +586,33 @@ resource "azurerm_application_gateway" "appgw" {
 }
 
 
-####### Custom Policy
+####### Permissions
+# resource "azurerm_role_assignment" "policy_contributor" {
+#   scope                = data.azurerm_subscription.primary.id
+#   role_definition_name = "Policy contributor role"
+#   principal_id         = data.azurerm_client_config.current.object_id
+# }
+
+# Custom Policy: Require Owner Tag
 resource "azurerm_policy_definition" "require_owner_tag" {
   name         = "Require-Owner-Tag"
   policy_type  = "Custom"
   mode         = "Indexed"
-  display_name = "Requerir etiqueta Owner en recursos"
-  description  = "Niega creación de recursos que no tengan la etiqueta especificada en 'tagName'."
+  display_name = "Require Owner Tag on all resources"
+  description  = "Denies creation of any resource without the 'Owner' tag."
   policy_rule  = file("${path.module}/../azure-policies/require_tags.json")
-  parameters = <<PARAMS
-{
-  "tagName": {
-    "type": "String",
-    "defaultValue": "Owner",
-    "metadata": {
-      "displayName": "Tag Name",
-      "description": "Nombre de la etiqueta obligatoria en cada recurso"
-    }
-  }
-}
-PARAMS
+  # depends_on = [azurerm_role_assignment.policy_contributor]
 }
 
-resource "azurerm_resource_group_policy_assignment" "assign_require_owner_tag" {
-  name                 = "Require Owner Tag"
+resource "azurerm_resource_group_policy_assignment" "rg_owner_tag" {
+  name                 = "require-owner-tag-on-rg"
   resource_group_id    = azurerm_resource_group.rg.id
   policy_definition_id = azurerm_policy_definition.require_owner_tag.id
 
   parameters = <<PARAMS
 {
   "tagName": {
-    "value": "Owner"
-  }
-}
-PARAMS
-}
-
-resource "azurerm_policy_definition" "allowed_locations" {
-  name         = "Allowed-Locations"
-  policy_type  = "Custom"
-  mode         = "Indexed"
-  display_name = "Only allowed locations for TFM RG"
-  description  = "Solo regiones westeurope y northeurope."
-  policy_rule  = file("${path.module}/../azure-policies/allowed_locations.json")
-  parameters = <<PARAMETERS
-{
-  "allowedLocations": {
-    "type": "Array",
-    "metadata": {
-      "displayName": "Allowed Locations",
-      "description": "Lista de regiones autorizadas"
-    }
-  }
-}
-PARAMETERS
-}
-
-resource "azurerm_resource_group_policy_assignment" "assign_rg_allowed_locations" {
-  name                 = "Allowed Locations"
-  resource_group_id    = azurerm_resource_group.rg.id
-  policy_definition_id = azurerm_policy_definition.allowed_locations.id
-
-  parameters = <<PARAMS
-{
-  "allowedLocations": {
-    "value": [ "westeurope", "northeurope" ]
+    "value": "${var.owner_tag}"
   }
 }
 PARAMS

@@ -139,7 +139,10 @@ jobs:
 
       - name: Set app_url output
         id: set-url
-        run: echo "app_url=$(terraform -chdir=terraform output -raw app_url)" >> $GITHUB_OUTPUT
+        run: |
+          APP_URL=$(terraform -chdir=terraform output -raw app_url |  sed -e 's/::debug.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          echo "app_url: $APP_URL"
+          echo "app_url=$APP_URL" >> $GITHUB_OUTPUT
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
