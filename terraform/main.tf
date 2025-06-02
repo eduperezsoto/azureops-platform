@@ -92,6 +92,11 @@ resource "azurerm_service_plan" "app_plan" {
   }
 }
 
+data "azurerm_user_assigned_identity" "app_msi" {
+  name                = "${var.app_name}-msi" 
+  resource_group_name = var.infra_base_resource_group_name
+}
+
 ####### App Service
 resource "azurerm_linux_web_app" "app" {
   name                = var.app_name
@@ -99,47 +104,61 @@ resource "azurerm_linux_web_app" "app" {
   resource_group_name = azurerm_resource_group.rg.name
   service_plan_id     = azurerm_service_plan.app_plan.id
   https_only = true
-  client_certificate_enabled           = true
-  client_certificate_mode              = "Required"
-  public_network_access_enabled = false
+  # client_certificate_enabled           = true
+  # client_certificate_mode              = "Required"
+  # public_network_access_enabled = false
 
   logs {
+    application_logs {
+      file_system_level = "Verbose"
+    }
     detailed_error_messages = true
     failed_request_tracing = true
     http_logs {
       file_system {
         retention_in_mb   = 35            # Tamaño máx de logs en disco (MB) antes de rotar
-        retention_in_days = 7             # Días de retención de logs de HTTP en filesystem
+        retention_in_days = 1             # Días de retención de logs de HTTP en filesystem
       }
     }
   }
+
+
 
   site_config {
     health_check_path  = "/health" 
     health_check_eviction_time_in_min = 5                                                        
     http2_enabled      = true 
     always_on = true     
-    ftps_state = "Disabled"       
+    ftps_state = "Disabled"  
+    app_command_line  = "gunicorn --bind=0.0.0.0:8000 main:app"
+
+    application_stack {
+      python_version = "3.13"
+    }   
   }
 
   identity {
-    type = "SystemAssigned"
+    type         = "UserAssigned"
+    identity_ids = [data.azurerm_user_assigned_identity.app_msi.id]
   }
 
-  auth_settings {
-    enabled = true
-  }
+  # auth_settings {
+  #   enabled = true
+  # }
 
   app_settings = {
     "KEY_VAULT_URI"            = data.azurerm_key_vault.kv_base.vault_uri
-    "WEBSITE_RUN_FROM_PACKAGE" = "1"
+    SCM_DO_BUILD_DURING_DEPLOYMENT   = true
+    # FLASK_APP                  = "main.py"
+    FLASK_ENV                  = "production"  
+    AZURE_CLIENT_ID               = data.azurerm_user_assigned_identity.app_msi.client_id
   }
 
   tags = {
     Owner = var.owner_tag
   }
 }
-
+/*
 # Crear un Private Endpoint para que tu App Service sea accesible solo por IP interna
 resource "azurerm_private_endpoint" "app_endpoint" {
   name                = "${var.app_name}-endpoint"
@@ -369,7 +388,7 @@ resource "azurerm_application_gateway" "appgw" {
     Owner = var.owner_tag
   }
 }
-
+*/
 
 ####### Custom Policy
 resource "azurerm_policy_definition" "require_owner_tag" {

@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-from azure.identity import DefaultAzureCredential
+from azure.identity import ManagedIdentityCredential
 from azure.keyvault.secrets import SecretClient
 import os
 
@@ -19,7 +19,7 @@ def fetch_secret(name: str):
     if not app.config["KEY_VAULT_URI"]:
         return False, None
     try:
-        credential = DefaultAzureCredential()
+        credential = ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID"))
         client = SecretClient(vault_url=app.config["KEY_VAULT_URI"], credential=credential)
         secret = client.get_secret(name)
         return True, secret.value
@@ -30,7 +30,7 @@ def fetch_secret(name: str):
 
 @app.route("/")
 def index():
-    loaded, value = fetch_secret("MYSECRET")
+    loaded, value = fetch_secret("mysecret")
     return jsonify({
         "message": "Hello, world!",
         "secret_loaded": loaded,
