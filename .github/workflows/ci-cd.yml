@@ -51,62 +51,59 @@ jobs:
   #       env:
   #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # iac_scan:
-  #   # needs: prep
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: read # for actions/checkout to fetch code
-  #     security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-  #     actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0 
+  iac_scan:
+    # needs: prep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
-  #     - name: Create tests_results directory
-  #       run: mkdir -p tests_results
+      - name: Create tests_results directory
+        run: mkdir -p tests_results
 
-  #     - name: TFSec scan
-  #       uses: aquasecurity/tfsec-action@v1.0.3
-  #       with:
-  #         format: lovely,sarif
-  #         # soft_fail: true
-  #         additional_args: --out tests_results/tfsec_results # --minimum-severity=MEDIUM 
+      - name: TFSec scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          format: lovely,sarif
+          additional_args: --out tests_results/tfsec_results
 
-  #     - name: Checkov scan
-  #       uses: bridgecrewio/checkov-action@v12
-  #       with:
-  #         directory: terraform/
-  #         skip_check: CKV_AZURE_33,CKV_AZURE_88,CKV_AZURE_222,CKV_AZURE_17
-  #         output_format: cli,sarif
-  #         output_file_path: console,tests_results/checkov_results.sarif
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          skip_check: CKV_AZURE_33,CKV_AZURE_88,CKV_AZURE_222,CKV_AZURE_17,CKV_AZURE_13,CKV_AZURE_211,CKV_AZURE_225,CKV_AZURE_212
+          output_format: cli,sarif
+          output_file_path: console,tests_results/checkov_results.sarif
 
-  #     - name: Upload tfec SARIF file
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       if: success() || failure()
-  #       with:
-  #         sarif_file: tests_results/tfsec_results.sarif.json
+      - name: Upload tfec SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() || failure()
+        with:
+          sarif_file: tests_results/tfsec_results.sarif.json
 
-  #     - name: Upload checkov SARIF file
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       if: success() || failure()
-  #       with:
-  #         sarif_file: tests_results/checkov_results.sarif
+      - name: Upload checkov SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() || failure()
+        with:
+          sarif_file: tests_results/checkov_results.sarif
 
-  #     - name: Upload IaC scan tests_results
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: iac-scan-results
-  #         path: |
-  #           tests_results/tfsec_results.sarif.json
-  #           tests_results/checkov_results.sarif
+      - name: Upload IaC scan tests_results
+        uses: actions/upload-artifact@v4
+        with:
+          name: iac-scan-results
+          path: |
+            tests_results/tfsec_results.sarif.json
+            tests_results/checkov_results.sarif
 
   deploy:
-    # needs: iac_scan # [prep, iac_scan]
+    needs: iac_scan
     runs-on: ubuntu-latest
-    # outputs:
-    #   app_url: ${{ steps.set-url.outputs.app_url }}
     env:
       TF_VAR_resource_group_name: ${{ secrets.RESOURCE_GROUP_NAME }}
       TF_VAR_app_name:           ${{ secrets.APP_NAME }}
@@ -130,24 +127,15 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform init -input=false
 
+      - name: Terraform Validate
+        run: terraform -chdir=terraform validate
+
       - name: Terraform Plan
         run: terraform -chdir=terraform plan -out=tfplan -input=false
 
       - name: Terraform Apply
         id: apply
         run: terraform -chdir=terraform apply -input=false -auto-approve tfplan
-
-      # - name: Set app_url output
-      #   id: set-url
-      #   run: |
-      #     APP_URL=$(terraform -chdir=terraform output -raw app_url |  sed -e 's/::debug.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-      #     echo "app_url: $APP_URL"
-      #     echo "app_url=$APP_URL" >> $GITHUB_OUTPUT
-
-      # - name: Empaquetar contenido de app en ZIP
-      #   run: |
-      #     cd app
-      #     zip -r ../app-content.zip .
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3

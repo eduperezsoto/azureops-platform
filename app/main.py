@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, request
 from azure.identity import ManagedIdentityCredential
 from azure.keyvault.secrets import SecretClient
 import os
@@ -12,10 +12,6 @@ app.config.from_object(Config)
 
 
 def fetch_secret(name: str):
-    """
-    Intenta obtener un secreto de Key Vault.
-    Devuelve tupla (secret_loaded, secret_value).
-    """
     if not app.config["KEY_VAULT_URI"]:
         return False, None
     try:
@@ -30,12 +26,7 @@ def fetch_secret(name: str):
 
 @app.route("/")
 def index():
-    loaded, value = fetch_secret("mysecret")
-    return jsonify({
-        "message": "Hello, world!",
-        "secret_loaded": loaded,
-        "secret_value": value
-    })
+    return render_template('index.html')
 
 
 @app.route("/health")
@@ -45,12 +36,9 @@ def health():
 
 @app.route("/secret")
 def secret():
-    loaded, value = fetch_secret("MY_SECRET")
-    return jsonify({
-        "secret_loaded": loaded,
-        "secret_value": value
-    })
+    loaded, value = fetch_secret("mysecret")
+    return render_template('secret.html', secret=value)
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=(Config.ENV == "development"))
+    app.run(host="0.0.0.0", port=8000, debug=(Config.ENV == "development"))

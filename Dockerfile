@@ -17,7 +17,7 @@ ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
 
 # 5. Expón el puerto
-EXPOSE 5000
+EXPOSE 8000
 
 # 6. Comando por defecto
 CMD ["flask", "run"]
