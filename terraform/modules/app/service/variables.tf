@@ -34,3 +34,13 @@ variable "key_vault_uri" {
   description = "Uri of the key vault to be used in the app"
   type        = string
 }
+
+variable "instrumentation_key" {
+  description = "Instrumentation key"
+  type = string
+}
+
+variable "connection_string" {
+  description = "Connection String"
+  type = string
+}

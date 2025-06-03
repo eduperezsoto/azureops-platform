@@ -44,10 +44,12 @@ resource "azurerm_linux_web_app" "app" {
   }
 
   app_settings = {
-    KEY_VAULT_URI                     = var.key_vault_uri
-    SCM_DO_BUILD_DURING_DEPLOYMENT    = true
-    FLASK_ENV                         = "production"  
-    AZURE_CLIENT_ID                   = data.azurerm_user_assigned_identity.app_msi.client_id
+    KEY_VAULT_URI                         = var.key_vault_uri
+    SCM_DO_BUILD_DURING_DEPLOYMENT        = true
+    FLASK_ENV                             = "production"  
+    AZURE_CLIENT_ID                       = data.azurerm_user_assigned_identity.app_msi.client_id
+    APPLICATIONINSIGHTS_CONNECTION_STRING = var.connection_string
+    APPINSIGHTS_INSTRUMENTATIONKEY        = var.instrumentation_key
   }
 
   tags = {

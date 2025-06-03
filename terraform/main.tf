@@ -26,50 +26,6 @@ resource "azurerm_resource_group" "rg" {
 }
 
 
-# ####### VIRTUAL NET #######
-# resource "azurerm_virtual_network" "vnet" {
-#   name                = "vnet"
-#   address_space       = ["10.0.0.0/16"]
-#   location            = azurerm_resource_group.rg.location
-#   resource_group_name = azurerm_resource_group.rg.name
-# }
-
-
-# ####### SUBNET #######
-# resource "azurerm_subnet" "subnet" {
-#   name                 = "subnet"
-#   resource_group_name  = azurerm_resource_group.rg.name
-#   virtual_network_name = azurerm_virtual_network.vnet.name
-#   service_endpoints    = ["Microsoft.Storage", "Microsoft.KeyVault"]
-#   address_prefixes     = ["10.0.1.0/24"]  
-# }
-
-
-# ####### NSG #######
-# resource "azurerm_network_security_group" "nsg" {
-#   name                = "${var.app_name}-nsg"
-#   location            = azurerm_resource_group.rg.location
-#   resource_group_name = azurerm_resource_group.rg.name
-
-#   security_rule {
-#     name                       = "Allow_Azure_Platform"
-#     priority                   = 100
-#     direction                  = "Inbound"
-#     access                     = "Allow"
-#     protocol                   = "*"
-#     source_address_prefix      = "VirtualNetwork"
-#     destination_address_prefix = "*"
-#     source_port_range          = "*"
-#     destination_port_range     = "*"
-#   }
-# }
-
-# resource "azurerm_subnet_network_security_group_association" "nsg_association" {
-#   subnet_id                 = azurerm_subnet.subnet.id
-#   network_security_group_id = azurerm_network_security_group.nsg.id
-# }
-
-
 ####### KEY VAULT #######
 data "azurerm_key_vault" "kv_base" {
   name                = "kv-base"
@@ -127,6 +83,8 @@ module "app_service" {
   infra_base_resource_group_name = var.infra_base_resource_group_name
   service_plan_id = module.appservice_plan.service_plan_id
   key_vault_uri = data.azurerm_key_vault.kv_base.vault_uri
+  instrumentation_key = module.application_insights.instrumentation_key
+  connection_string = module.application_insights.connection_string
   owner_tag = var.owner_tag
 }
 

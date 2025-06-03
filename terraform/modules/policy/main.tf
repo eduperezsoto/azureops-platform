@@ -1,10 +1,10 @@
-# Custom policy: Require owner tag
-resource "azurerm_policy_definition" "require_owner_tag" {
-  name         = "Require-Owner-Tag"
+# Custom policy: Require tag
+resource "azurerm_policy_definition" "require_tag" {
+  name         = "Require-Tag"
   policy_type  = "Custom"
   mode         = "Indexed"
-  display_name = "Requerir etiqueta Owner en recursos"
-  description  = "Niega creación de recursos que no tengan la etiqueta especificada en 'tagName'."
+  display_name = "Require Tag"
+  description  = "Niega creación o actualizacion de recursos que no tengan la etiqueta especificada."
   policy_rule  = file("${path.module}/../../../azure-policies/require_tags.json")
   parameters = <<PARAMS
 {
@@ -23,7 +23,7 @@ PARAMS
 resource "azurerm_resource_group_policy_assignment" "assign_require_owner_tag" {
   name                 = "Require Owner Tag"
   resource_group_id    = var.resource_group_id
-  policy_definition_id = azurerm_policy_definition.require_owner_tag.id
+  policy_definition_id = azurerm_policy_definition.require_tag.id
 
   parameters = <<PARAMS
 {
@@ -35,35 +35,15 @@ PARAMS
 }
 
 
-# Custom policy: Allowed Locations
-resource "azurerm_policy_definition" "allowed_locations" {
-  name         = "Allowed-Locations"
-  policy_type  = "Custom"
-  mode         = "Indexed"
-  display_name = "Only allowed locations for TFM RG"
-  description  = "Solo regiones westeurope y northeurope."
-  policy_rule  = file("${path.module}/../../../azure-policies/allowed_locations.json")
-  parameters = <<PARAMETERS
-{
-  "allowedLocations": {
-    "type": "Array",
-    "metadata": {
-      "displayName": "Allowed Locations",
-      "description": "Lista de regiones autorizadas"
-    }
-  }
-}
-PARAMETERS
-}
-
+# Builtin policy: Allowed Locations
 resource "azurerm_resource_group_policy_assignment" "assign_rg_allowed_locations" {
   name                 = "Allowed Locations"
   resource_group_id    = var.resource_group_id
-  policy_definition_id = azurerm_policy_definition.allowed_locations.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c"
 
   parameters = <<PARAMS
 {
-  "allowedLocations": {
+  "listOfAllowedLocations": {
     "value": [ "westeurope", "northeurope" ]
   }
 }

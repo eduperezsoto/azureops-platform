@@ -20,17 +20,6 @@ variable "app_name" {
   type        = string
 }
 
-variable "key_vault_name" {
-  description = "Name for the Key Vault"
-  type        = string
-}
-
-variable "my_secret_value" {
-  description = "Value for the demo secret MY_SECRET"
-  type        = string
-  default     = "DevSecretValue"
-}
-
 variable "expiry_date" {
   description = "Expiry date"
   type        = string
@@ -40,6 +29,7 @@ variable "expiry_date" {
 variable "owner_tag" {
   description = "Value for the Owner tag on resources"
   type        = string
+  default     = "eduperezsoto"
 }
 
 variable "sku_name" {
