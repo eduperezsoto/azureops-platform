@@ -1,0 +1,56 @@
+####### App Service
+data "azurerm_user_assigned_identity" "app_msi" {
+  name                = "${var.app_name}-msi" 
+  resource_group_name = var.infra_base_resource_group_name
+}
+
+resource "azurerm_linux_web_app" "app" {
+  name                = var.app_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  service_plan_id     = var.service_plan_id
+  https_only = true
+
+  logs {
+    application_logs {
+      file_system_level = "Verbose"
+    }
+    detailed_error_messages = true
+    failed_request_tracing = true
+    http_logs {
+      file_system {
+        retention_in_mb   = 35            # Tamaño máx de logs en disco (MB) antes de rotar
+        retention_in_days = 1             # Días de retención de logs de HTTP en filesystem
+      }
+    }
+  }
+
+  site_config {
+    health_check_path  = "/health" 
+    health_check_eviction_time_in_min = 5                                                        
+    http2_enabled = true 
+    always_on = true     
+    ftps_state = "Disabled"  
+    app_command_line  = "gunicorn --bind=0.0.0.0:8000 main:app"
+
+    application_stack {
+      python_version = "3.13"
+    }   
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [data.azurerm_user_assigned_identity.app_msi.id]
+  }
+
+  app_settings = {
+    KEY_VAULT_URI                     = var.key_vault_uri
+    SCM_DO_BUILD_DURING_DEPLOYMENT    = true
+    FLASK_ENV                         = "production"  
+    AZURE_CLIENT_ID                   = data.azurerm_user_assigned_identity.app_msi.client_id
+  }
+
+  tags = {
+    Owner = var.owner_tag
+  }
+}
