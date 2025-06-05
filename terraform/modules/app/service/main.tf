@@ -27,7 +27,8 @@ resource "azurerm_linux_web_app" "app" {
 
   site_config {
     health_check_path  = "/health" 
-    health_check_eviction_time_in_min = 5                                                        
+    health_check_eviction_time_in_min = 5       
+    minimum_tls_version = 1.3                                                 
     http2_enabled = true 
     always_on = true     
     ftps_state = "Disabled"  
@@ -46,7 +47,7 @@ resource "azurerm_linux_web_app" "app" {
   app_settings = {
     KEY_VAULT_URI                         = var.key_vault_uri
     SCM_DO_BUILD_DURING_DEPLOYMENT        = true
-    FLASK_ENV                             = "production"  
+    FLASK_ENV                             = "development"  
     AZURE_CLIENT_ID                       = data.azurerm_user_assigned_identity.app_msi.client_id
     APPLICATIONINSIGHTS_CONNECTION_STRING = var.connection_string
     APPINSIGHTS_INSTRUMENTATIONKEY        = var.instrumentation_key
@@ -54,5 +55,31 @@ resource "azurerm_linux_web_app" "app" {
 
   tags = {
     Owner = var.owner_tag
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "diag_appservice" {
+  name               = "${var.app_name}-diag-settings" 
+  target_resource_id = azurerm_linux_web_app.app.id
+  log_analytics_workspace_id = var.workspace_id
+
+  enabled_log {
+    category = "AppServiceHTTPLogs"    # Peticiones HTTP entrantes
+  }
+
+  enabled_log {
+    category = "AppServiceAppLogs"     # app.logger.info(), errores de Flask, etc.
+  }
+
+  enabled_log {
+    category = "AppServiceConsoleLogs" # Mensajes que Gunicorn imprime, prints inesperados, etc.
+  }
+
+  enabled_log {
+    category = "AppServicePlatformLogs"
+  }
+
+  enabled_metric {
+    category = "AllMetrics"
   }
 }

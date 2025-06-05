@@ -1,15 +1,42 @@
-from flask import Flask, jsonify, render_template, request
+import os
+import logging
+from flask import Flask, jsonify, render_template
 from azure.identity import ManagedIdentityCredential
 from azure.keyvault.secrets import SecretClient
-import os
+from config import Config
+from opentelemetry import trace
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter
 
-class Config:
-    KEY_VAULT_URI = os.getenv("KEY_VAULT_URI")
-    ENV = os.getenv("FLASK_ENV", "production")
+
+logging.basicConfig(
+    level=logging.DEBUG if Config.ENV == "development" else logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
+
+# Set global TracerProvider before instrumenting
+trace.set_tracer_provider(
+    TracerProvider(
+        resource=Resource.create({SERVICE_NAME: "flask-app"})
+    )
+)
+
+# Enable tracing for Flask library
+FlaskInstrumentor().instrument_app(app)
+
+# Enable tracing for requests library
+RequestsInstrumentor().instrument()
+
+trace_exporter = AzureMonitorTraceExporter(connection_string=Config.CONNECTION_STRING, enable_live_metrics=True)
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(trace_exporter))
 
 def fetch_secret(name: str):
     if not app.config["KEY_VAULT_URI"]:
@@ -36,7 +63,7 @@ def health():
 
 @app.route("/secret")
 def secret():
-    loaded, value = fetch_secret("mysecret")
+    _, value = fetch_secret("mysecret")
     return render_template('secret.html', secret=value)
 
 

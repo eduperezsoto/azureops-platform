@@ -44,3 +44,8 @@ variable "connection_string" {
   description = "Connection String"
   type = string
 }
+
+variable "workspace_id" {
+  description = "Id of the log analytics workspace"
+  type        = string
+}

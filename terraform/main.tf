@@ -85,6 +85,7 @@ module "app_service" {
   key_vault_uri = data.azurerm_key_vault.kv_base.vault_uri
   instrumentation_key = module.application_insights.instrumentation_key
   connection_string = module.application_insights.connection_string
+  workspace_id = module.log_analytics.workspace_id
   owner_tag = var.owner_tag
 }
 
