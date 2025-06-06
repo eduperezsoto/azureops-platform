@@ -22,24 +22,28 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 
-# Set global TracerProvider before instrumenting
-trace.set_tracer_provider(
-    TracerProvider(
-        resource=Resource.create({SERVICE_NAME: "flask-app"})
+if Config.CONNECTION_STRING:
+    # Set global TracerProvider before instrumenting
+    trace.set_tracer_provider(
+        TracerProvider(
+            resource=Resource.create({SERVICE_NAME: "flask-app"})
+        )
     )
-)
 
-# Enable tracing for Flask library
-FlaskInstrumentor().instrument_app(app)
+    # Enable tracing for Flask library
+    FlaskInstrumentor().instrument_app(app)
 
-# Enable tracing for requests library
-RequestsInstrumentor().instrument()
+    # Enable tracing for requests library
+    RequestsInstrumentor().instrument()
 
-trace_exporter = AzureMonitorTraceExporter(connection_string=Config.CONNECTION_STRING, enable_live_metrics=True)
-trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(trace_exporter))
+    trace_exporter = AzureMonitorTraceExporter(connection_string=Config.CONNECTION_STRING)
+    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(trace_exporter))
+else:
+    app.logger.info(f"Open telemetry no configurado ya que no hay ningun connection string especificado.")
 
 def fetch_secret(name: str):
     if not app.config["KEY_VAULT_URI"]:
+        app.logger.error(f"Error al obtener secreto '{name}'porque KEY_VAULT_URI no está configurado")
         return False, None
     try:
         credential = ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID"))

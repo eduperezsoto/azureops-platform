@@ -8,7 +8,6 @@ services:
     environment:
       FLASK_ENV: development
       KEY_VAULT_URI: ""
-    command: gunicorn --bind=0.0.0.0:8000 main:app
 
   tests:
     build: .
@@ -17,24 +16,11 @@ services:
       - ./:/workspace
     working_dir: /workspace
     environment:
-      PYTHONPATH: /workspace
+      PYTHONPATH: /workspace/app:/workspace
     command: >
-      sh -c "mkdir -p tests_results &&
-      pytest tests/unit --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml:tests_results/coverage/coverage.xml --cov-report=html:tests_results/coverage --junit-xml=tests_results/unit_result.xml &&
-      pytest tests/integration --maxfail=1 --disable-warnings -q --cov=app --cov-append --cov-report=xml:tests_results/coverage/coverage.xml --cov-report=html:tests_results/coverage --junit-xml=tests_results/integration_result.xml &&
-      junit2html tests_results/unit_result.xml tests_results/unit_result.html &&
-      junit2html tests_results/integration_result.xml tests_results/integration_result.html"
+      sh -c "mkdir -p artifacts &&
+      pytest tests/unit --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml:artifacts/coverage/coverage.xml --cov-report=html:artifacts/coverage --junit-xml=artifacts/unit_result.xml &&
+      pytest tests/integration --maxfail=1 --disable-warnings -q --cov=app --cov-append --cov-report=xml:artifacts/coverage/coverage.xml --cov-report=html:artifacts/coverage --junit-xml=artifacts/integration_result.xml &&
+      junit2html artifacts/unit_result.xml artifacts/unit_result.html &&
+      junit2html artifacts/integration_result.xml artifacts/integration_result.html"
 
-  ansible:
-    image: williamyeh/ansible:debian10
-    container_name: azureops_ansible
-    volumes:
-      - ./:/workspace:rw
-    working_dir: /workspace
-    entrypoint: ["ansible-playbook"]
-    command: ["ansible/playbooks/configure_app_service.yml",
-              "-e", "RESOURCE_GROUP_NAME=devops-rg",
-              "-e", "APP_NAME=azureops-app",
-              "-e", "KEY_VAULT_NAME=azureops-kv",
-              "-e", "AZURE_SUBSCRIPTION_ID=<TU_SUB_ID>",
-              "-e", "AZURE_TENANT_ID=<TU_TENANT_ID>"]

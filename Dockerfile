@@ -11,13 +11,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 # 3. Copia solo el código de tu aplicación
 COPY app/ .
 
-# 4. Variables de entorno para Flask
-ENV FLASK_APP=main.py
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=5000
-
-# 5. Expón el puerto
+# 4. Expón el puerto
 EXPOSE 8000
 
-# 6. Comando por defecto
-CMD ["flask", "run"]
+# 5. Comando por defecto
+CMD ["gunicorn", "--bind=0.0.0.0:8000", "main:app"]

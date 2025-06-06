@@ -1,6 +1,4 @@
-pytest>=7.0.0
-pytest-cov>=4.0.0
-ansible>=2.13
-azure-cli>=2.50.0
-pandas>=1.0.0
-junit2html>=2.2.0
+pytest>=8.4.0
+pytest-cov>=6.1.1
+azure-cli>=2.74.0
+junit2html>=31.0.2
