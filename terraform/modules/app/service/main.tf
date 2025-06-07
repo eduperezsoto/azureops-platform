@@ -64,15 +64,15 @@ resource "azurerm_monitor_diagnostic_setting" "diag_appservice" {
   log_analytics_workspace_id = var.workspace_id
 
   enabled_log {
-    category = "AppServiceHTTPLogs"    # Peticiones HTTP entrantes
+    category = "AppServiceHTTPLogs"
   }
 
   enabled_log {
-    category = "AppServiceAppLogs"     # app.logger.info(), errores de Flask, etc.
+    category = "AppServiceAppLogs"   
   }
 
   enabled_log {
-    category = "AppServiceConsoleLogs" # Mensajes que Gunicorn imprime, prints inesperados, etc.
+    category = "AppServiceConsoleLogs" 
   }
 
   enabled_log {
