@@ -69,7 +69,7 @@ module "appservice_plan" {
   app_name = var.app_name
   resource_group_name = azurerm_resource_group.rg.name
   location = azurerm_resource_group.rg.location
-  sku_name = var.sku_name
+  sku_name = var.app_sku_name
   os_type = var.os_type
   owner_tag = var.owner_tag
 }
@@ -87,6 +87,8 @@ module "app_service" {
   instrumentation_key = module.application_insights.instrumentation_key
   connection_string = module.application_insights.connection_string
   workspace_id = module.log_analytics.workspace_id
+  app_env = var.app_env
+  app_python_version = var.app_python_version
   owner_tag = var.owner_tag
 }
 

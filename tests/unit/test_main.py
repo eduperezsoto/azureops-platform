@@ -1,5 +1,4 @@
 # tests/unit/test_main.py
-import os
 import pytest
 import app.main as main_module
 from app.main import fetch_secret
@@ -13,62 +12,61 @@ class DummySecret:
 @pytest.fixture(autouse=True)
 def clear_env_and_config():
     """
-    Antes de cada test, reseteamos app.config["KEY_VAULT_URI"] y la variable de entorno AZURE_CLIENT_ID
-    para evitar interferencias entre tests.
+    Reset app.config["KEY_VAULT_URI"] and app.config["KEY_VAULT_URI"] to avoid interference between tests.
     """
     orig_kv = main_module.app.config.get("KEY_VAULT_URI", None)
-    orig_client_id = os.environ.get("AZURE_CLIENT_ID", None)
+    orig_client_id = main_module.app.config.get("AZURE_CLIENT_ID", None)
 
     yield
 
-    # Restauramos KEY_VAULT_URI
+    # Restore KEY_VAULT_URI
     if orig_kv is not None:
         main_module.app.config["KEY_VAULT_URI"] = orig_kv
     else:
         main_module.app.config.pop("KEY_VAULT_URI", None)
 
-    # Restauramos AZURE_CLIENT_ID
+    # Restore AZURE_CLIENT_ID
     if orig_client_id is not None:
-        os.environ["AZURE_CLIENT_ID"] = orig_client_id
+        main_module.app.config["AZURE_CLIENT_ID"] = orig_client_id
     else:
-        os.environ.pop("AZURE_CLIENT_ID", None)
+        main_module.app.config.pop("AZURE_CLIENT_ID", None)
 
 
-def test_fetch_secret_uri_no_configurado(monkeypatch):
+def test_fetch_secret_uri_not_configured(monkeypatch):
     """
-    Si KEY_VAULT_URI está vacío o None, fetch_secret debe devolver (False, None).
+    If KEY_VAULT_URI is empty or None, fetch_secret should return (False, None).
     """
     main_module.app.config["KEY_VAULT_URI"] = None
 
-    ok, value = fetch_secret("cualquier")
+    ok, value = fetch_secret("any")
     assert ok is False
     assert value is None
 
 
-def test_fetch_secret_error_en_get_secret(monkeypatch):
+def test_fetch_secret_get_secret_error(monkeypatch):
     """
-    Si SecretClient.get_secret lanza excepción, fetch_secret atrapa el error y devuelve (False, None).
+    If SecretClient.get_secret raises an exception, fetch_secret should catch the error and return (False, None).
     """
-    # Configuramos KEY_VAULT_URI para que no sea None
-    main_module.app.config["KEY_VAULT_URI"] = "https://mi-vault.vault.azure.net/"
-    os.environ["AZURE_CLIENT_ID"] = "mi-client-id"
+    # Configure KEY_VAULT_URI and AZURE_CLIENT_ID so that they are not None
+    main_module.app.config["KEY_VAULT_URI"] = "https://my-vault.vault.azure.net/"
+    main_module.app.config["AZURE_CLIENT_ID"] = "my-client-id"
 
-    # Parcheamos ManagedIdentityCredential dentro de app.main para que devuelva un "dummy-credential"
+    # Patch ManagedIdentityCredential in app.main to return a dummy credential
     monkeypatch.setattr(
         main_module,
         "ManagedIdentityCredential",
         lambda client_id=None: "cred-dummy"
     )
 
-    # Creamos un SecretClient simulado que siempre lanza excepción en get_secret
+    # Create a fake SecretClient that always raises on get_secret
     class FakeClient:
         def __init__(self, vault_url, credential):
             pass
 
         def get_secret(self, name):
-            raise Exception("error forzado")
+            raise Exception("Forced error")
 
-    # Parcheamos SecretClient dentro de app.main
+    # Patch SecretClient in app.main
     monkeypatch.setattr(main_module, "SecretClient", FakeClient)
 
     ok, val = fetch_secret("fail")
@@ -76,24 +74,24 @@ def test_fetch_secret_error_en_get_secret(monkeypatch):
     assert val is None
 
 
-def test_fetch_secret_exito(monkeypatch):
+def test_fetch_secret_success(monkeypatch):
     """
-    Si SecretClient.get_secret() funciona, fetch_secret debe devolver (True, secret.value).
+    If SecretClient.get_secret() succeeds, fetch_secret should return (True, secret.value).
     """
-    # Configuramos KEY_VAULT_URI y la variable de entorno AZURE_CLIENT_ID
-    main_module.app.config["KEY_VAULT_URI"] = "https://mi-vault.vault.azure.net/"
-    os.environ["AZURE_CLIENT_ID"] = "mi-client-id"
+    # Configure KEY_VAULT_URI and the AZURE_CLIENT_ID environment variable
+    main_module.app.config["KEY_VAULT_URI"] = "https://my-vault.vault.azure.net/"
+    main_module.app.config["AZURE_CLIENT_ID"] = "my-client-id"
 
-    # Parcheamos ManagedIdentityCredential dentro de app.main para que devuelva "dummy-credential"
+    # Patch ManagedIdentityCredential in app.main to return a dummy credential
     monkeypatch.setattr(
         main_module,
         "ManagedIdentityCredential",
         lambda client_id=None: "dummy-credential"
     )
 
-    # Parcheamos SecretClient dentro de app.main
+    # Patch SecretClient in app.main
     def fake_init(self, vault_url, credential):
-        assert vault_url == "https://mi-vault.vault.azure.net/"
+        assert vault_url == "https://my-vault.vault.azure.net/"
         assert credential == "dummy-credential"
         return None
 
@@ -101,9 +99,9 @@ def test_fetch_secret_exito(monkeypatch):
     monkeypatch.setattr(
         main_module.SecretClient,
         "get_secret",
-        lambda self, name: DummySecret(f"valor-de-{name}")
+        lambda self, name: DummySecret(f"value-of-{name}")
     )
 
-    ok, val = fetch_secret("mi-secreto")
+    ok, val = fetch_secret("my-secret")
     assert ok is True
-    assert val == "valor-de-mi-secreto"
+    assert val == "value-of-my-secret"

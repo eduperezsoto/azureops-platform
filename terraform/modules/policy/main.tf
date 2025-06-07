@@ -4,7 +4,7 @@ resource "azurerm_policy_definition" "require_tag" {
   policy_type  = "Custom"
   mode         = "Indexed"
   display_name = "Require Tag"
-  description  = "Niega creación o actualizacion de recursos que no tengan la etiqueta especificada."
+  description  = "Denies creation or updating of resources that do not have the specified label."
   policy_rule  = file("${path.module}/../../../azure-policies/require_tags.json")
   parameters = <<PARAMS
 {
@@ -13,7 +13,7 @@ resource "azurerm_policy_definition" "require_tag" {
     "defaultValue": "Owner",
     "metadata": {
       "displayName": "Tag Name",
-      "description": "Nombre de la etiqueta obligatoria en cada recurso"
+      "description": "Name of the mandatory label"
     }
   }
 }
@@ -61,4 +61,21 @@ resource "azurerm_resource_group_policy_assignment" "iso27001_initiative" {
   identity {
     type = "SystemAssigned"
   }
+}
+
+
+# CIS Azure Foundations Bencharmark v2.0.0 Initiative
+resource "azurerm_resource_group_policy_assignment" "cis_benchamark_initiative" {
+  name                 = "CIS Azure Foundations Bencharmark v2.0.0 Initiative"
+  resource_group_id    = var.resource_group_id
+  policy_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/06f19060-9e68-4070-92ca-f15cc126059e"
+  location             = var.location
+
+  parameters = <<PARAMS
+{
+  "maximumDaysToRotate-d8cf8476-a2ec-4916-896e-992351803c44": {
+    "value": 90
+  }
+}
+PARAMS
 }

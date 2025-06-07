@@ -20,26 +20,32 @@ variable "app_name" {
   type        = string
 }
 
-variable "expiry_date" {
-  description = "Expiry date"
-  type        = string
-  default     = "2025-12-31T23:59:59Z"
-}
-
 variable "owner_tag" {
   description = "Value for the Owner tag on resources"
   type        = string
   default     = "eduperezsoto"
 }
 
-variable "sku_name" {
-  description = "The SKU for the plan."
+variable "app_sku_name" {
+  description = "The SKU for the plan"
   type        = string
   default     = "B1"
 }
 
 variable "os_type" {
-  description = "The O/S type for the App Services to be hosted in this plan."
+  description = "The O/S type for the App Services to be hosted in this plan"
   type        = string
   default     = "Linux"
+}
+
+variable "app_env" {
+  description = "Enviroment of the app"
+  type        = string
+  default     = "production"
+}
+
+variable "app_python_version" {
+  description = "Python version of the app"
+  type        = string
+  default     = "3.13"
 }

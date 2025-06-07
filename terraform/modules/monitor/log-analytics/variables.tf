@@ -18,3 +18,9 @@ variable "owner_tag" {
   description = "Value for the Owner tag on resources"
   type        = string
 }
+
+variable "sku_name" {
+  description = "The SKU for the log analytics workspace"
+  type        = string
+  default     = "PerGB2018"
+}
