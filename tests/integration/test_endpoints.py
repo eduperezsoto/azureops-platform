@@ -60,13 +60,12 @@ def test_secret_endpoint_con_secret_exito(monkeypatch, client):
     Simulamos que fetch_secret retorna (True, "valor-demo"), y comprobamos que
     secret.html reciba ese valor y lo muestre en la respuesta.
     """
-    # 1. Configuramos KEY_VAULT_URI para que fetch_secret entre en la lógica de intentar leer.
+    # Configuramos KEY_VAULT_URI para que fetch_secret entre en la lógica de intentar leer.
     app.config["KEY_VAULT_URI"] = "https://mi-vault.vault.azure.net/"
 
-    # 2. Parcheamos fetch_secret para que no llame a Azure sino devuelva un par fijo.
+    # Parcheamos fetch_secret para que no llame a Azure sino devuelva un par fijo.
     def fake_fetch_secret(name: str):
-        # name debe ser "mysecret" según tu ruta
-        assert name == "mysecret"
+        assert name == "mysecret" # name debe ser "mysecret"
         return True, "valor-demo"
 
     monkeypatch.setattr("app.main.fetch_secret", fake_fetch_secret)
@@ -84,10 +83,10 @@ def test_secret_endpoint_con_secret_error(monkeypatch, client):
     Simulamos que fetch_secret retorna (False, None) con KEY_VAULT_URI configurado,
     y comprobamos que secret.html se renderice sin error, mostrando secret=None.
     """
-    # 1. Configuramos KEY_VAULT_URI para que fetch_secret intente leer
+    # Configuramos KEY_VAULT_URI para que fetch_secret intente leer
     app.config["KEY_VAULT_URI"] = "https://mi-vault.vault.azure.net/"
 
-    # 2. Parcheamos fetch_secret para que retorne (False, None)
+    # Parcheamos fetch_secret para que devuelva (False, None)
     monkeypatch.setattr("app.main.fetch_secret", lambda name: (False, None))
 
     response = client.get("/secret")

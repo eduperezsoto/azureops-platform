@@ -21,13 +21,13 @@ def clear_env_and_config():
 
     yield
 
-    # Restaurar KEY_VAULT_URI
+    # Restauramos KEY_VAULT_URI
     if orig_kv is not None:
         main_module.app.config["KEY_VAULT_URI"] = orig_kv
     else:
         main_module.app.config.pop("KEY_VAULT_URI", None)
 
-    # Restaurar AZURE_CLIENT_ID
+    # Restauramos AZURE_CLIENT_ID
     if orig_client_id is not None:
         os.environ["AZURE_CLIENT_ID"] = orig_client_id
     else:
@@ -91,11 +91,11 @@ def test_fetch_secret_exito(monkeypatch):
         lambda client_id=None: "dummy-credential"
     )
 
-    # Parcheamos SecretClient dentro de app.main: su __init__ comprueba parámetros y get_secret devuelve DummySecret
+    # Parcheamos SecretClient dentro de app.main
     def fake_init(self, vault_url, credential):
         assert vault_url == "https://mi-vault.vault.azure.net/"
         assert credential == "dummy-credential"
-        return None  # No guardamos nada
+        return None
 
     monkeypatch.setattr(main_module.SecretClient, "__init__", fake_init)
     monkeypatch.setattr(
