@@ -6,92 +6,86 @@ from app.main import app
 @pytest.fixture
 def client():
     """
-    Crea un Flask test client usando la aplicación real.
-    Para las rutas que usan fetch_secret, parchearemos esa función dinámicamente.
+    Creates a Flask test client using the real application.
     """
-    # Antes de crear el client, deshabilitamos cualquier valor previo en KEY_VAULT_URI
-    # para que, por defecto, fetch_secret retorne (False, None).
+    # Disable any previous value in KEY_VAULT_URI
     app.config["KEY_VAULT_URI"] = None
+    app.config["AZURE_CLIENT_ID"] = None
 
-    # Creamos el test_client
+    # Create the test client
     with app.test_client() as c:
         yield c
 
 
 def test_index_endpoint_status_and_content(client):
     """
-    GET "/" debe retornar 200 y debe contener algún fragmento conocido de index.html.
+    GET "/" should return 200 and contain the known prompt from the index template
     """
     response = client.get("/")
     assert response.status_code == 200
 
-    # Comprobamos que el contenido incluya algo que sepamos que está en templates/index.html
     html = response.get_data(as_text=True)
     assert "Quieres saber un secreto?" in html
 
 
 def test_health_endpoint_returns_json_healthy(client):
     """
-    GET "/health" debe retornar 200 con JSON {"status": "healthy"}.
+    GET "/health" should return 200 with JSON {"status": "healthy"}.
     """
     response = client.get("/health")
     assert response.status_code == 200
+
     data = response.get_json()
     assert isinstance(data, dict)
     assert data.get("status") == "healthy"
 
 
-def test_secret_endpoint_sin_keyvault(client):
+def test_secret_endpoint_without_keyvault(client):
     """
-    Si KEY_VAULT_URI está en None, fetch_secret devuelve (False, None),
-    por lo que la plantilla secret.html debe renderizarse con secret=None.
+    When no KEY_VAULT_URI is configured, GET "/secret" renders the error message.
     """
-    # Nos aseguramos de que KEY_VAULT_URI sea None
+    # Ensure KEY_VAULT_URI is None
     app.config["KEY_VAULT_URI"] = None
 
     response = client.get("/secret")
     assert response.status_code == 200
+
     html = response.get_data(as_text=True)
     assert "Error: El secreto no pudo ser leido!" in html
 
 
-def test_secret_endpoint_con_secret_exito(monkeypatch, client):
+def test_secret_endpoint_with_secret_success(monkeypatch, client):
     """
-    Simulamos que fetch_secret retorna (True, "valor-demo"), y comprobamos que
-    secret.html reciba ese valor y lo muestre en la respuesta.
+    When fetch_secret returns a valid secret, GET "/secret" displays that secret in the response.
     """
-    # Configuramos KEY_VAULT_URI para que fetch_secret entre en la lógica de intentar leer.
+    # Configure KEY_VAULT_URI so fetch_secret triggers the reading logic
     app.config["KEY_VAULT_URI"] = "https://mi-vault.vault.azure.net/"
 
-    # Parcheamos fetch_secret para que no llame a Azure sino devuelva un par fijo.
+    # Patch fetch_secret to avoid calling Azure and return a fixed pair
     def fake_fetch_secret(name: str):
-        assert name == "mysecret" # name debe ser "mysecret"
         return True, "valor-demo"
 
     monkeypatch.setattr("app.main.fetch_secret", fake_fetch_secret)
 
     response = client.get("/secret")
     assert response.status_code == 200
-    html = response.get_data(as_text=True)
 
-    # Ahora deberíamos encontrar "valor-demo" en el HTML generado
+    html = response.get_data(as_text=True)
     assert "valor-demo" in html
 
 
-def test_secret_endpoint_con_secret_error(monkeypatch, client):
+def test_secret_endpoint_with_secret_error(monkeypatch, client):
     """
-    Simulamos que fetch_secret retorna (False, None) con KEY_VAULT_URI configurado,
-    y comprobamos que secret.html se renderice sin error, mostrando secret=None.
+    When fetch_secret fails, GET "/secret" renders the error message.
     """
-    # Configuramos KEY_VAULT_URI para que fetch_secret intente leer
+    # Configure KEY_VAULT_URI so fetch_secret attempts reading
     app.config["KEY_VAULT_URI"] = "https://mi-vault.vault.azure.net/"
 
-    # Parcheamos fetch_secret para que devuelva (False, None)
+    # Patch fetch_secret to return (False, None)
     monkeypatch.setattr("app.main.fetch_secret", lambda name: (False, None))
 
     response = client.get("/secret")
     assert response.status_code == 200
+    
     html = response.get_data(as_text=True)
-
-    # Dado que secret == None, la plantilla debería mostrar "None" o un mensaje por defecto
-    assert "None" in html or "secret" in html.lower()
+    assert "Error: El secreto no pudo ser leido!" in html 

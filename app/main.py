@@ -1,4 +1,3 @@
-import os
 import logging
 from flask import Flask, jsonify, render_template
 from azure.identity import ManagedIdentityCredential
@@ -23,35 +22,36 @@ app.config.from_object(Config)
 
 
 if Config.CONNECTION_STRING:
-    # Set global TracerProvider before instrumenting
+    # Opentelemetry configuration
     trace.set_tracer_provider(
         TracerProvider(
             resource=Resource.create({SERVICE_NAME: "flask-app"})
         )
     )
 
-    # Enable tracing for Flask library
     FlaskInstrumentor().instrument_app(app)
-
-    # Enable tracing for requests library
     RequestsInstrumentor().instrument()
 
     trace_exporter = AzureMonitorTraceExporter(connection_string=Config.CONNECTION_STRING)
     trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(trace_exporter))
 else:
-    app.logger.info(f"Open telemetry no se ha configurado ya que no hay ningun Connection String especificado.")
+    app.logger.info(f"Open telemetry has not been configured because no connection string has been specified.")
+
 
 def fetch_secret(name: str):
+    app.logger.info(f"Fetching secret '{name}'")
+
     if not app.config["KEY_VAULT_URI"]:
-        app.logger.error(f"Error al obtener secreto '{name}'porque KEY_VAULT_URI no está configurado")
+        app.logger.error(f"Error getting secret '{name}' because KEY_VAULT_URI is not configured")
         return False, None
+
     try:
-        credential = ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID"))
+        credential = ManagedIdentityCredential(client_id=app.config["AZURE_CLIENT_ID"])
         client = SecretClient(vault_url=app.config["KEY_VAULT_URI"], credential=credential)
         secret = client.get_secret(name)
         return True, secret.value
     except Exception as e:
-        app.logger.error(f"Error al obtener secreto '{name}': {e}")
+        app.logger.error(f"Error getting secret '{name}': {e}")
         return False, None
 
 

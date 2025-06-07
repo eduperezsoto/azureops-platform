@@ -15,7 +15,7 @@ variable "resource_group_name" {
 }
 
 variable "infra_base_resource_group_name" {
-  description = "Name of the resource group"
+  description = "Name of the base infrastructure resource group"
   type        = string
   default     = "rg-infra-base"
 }
@@ -48,4 +48,16 @@ variable "connection_string" {
 variable "workspace_id" {
   description = "Id of the log analytics workspace"
   type        = string
+}
+
+variable "app_env" {
+  description = "Enviroment of the app"
+  type        = string
+  default     = "production"
+}
+
+variable "app_python_version" {
+  description = "Python version of the app"
+  type        = string
+  default     = "production"
 }

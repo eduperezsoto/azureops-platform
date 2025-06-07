@@ -1,4 +1,4 @@
 output "app_url" {
-  description = "Full URL of the deployed App Service"
+  description = "Url of the deployed App Service"
   value       = module.app_service.app_url
 }

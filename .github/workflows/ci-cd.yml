@@ -51,7 +51,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  iac_scan:
+  iac-scan:
     needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
@@ -102,7 +102,7 @@ jobs:
             artifacts/checkov_results.sarif
 
   deploy:
-    needs: iac_scan
+    needs: iac-scan
     runs-on: ubuntu-latest
     outputs: 
       app_url: ${{ steps.set-url.outputs.app_url }}

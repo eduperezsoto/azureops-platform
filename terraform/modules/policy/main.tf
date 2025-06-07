@@ -4,7 +4,7 @@ resource "azurerm_policy_definition" "require_tag" {
   policy_type  = "Custom"
   mode         = "Indexed"
   display_name = "Require Tag"
-  description  = "Niega creación o actualizacion de recursos que no tengan la etiqueta especificada."
+  description  = "Denies creation or updating of resources that do not have the specified label."
   policy_rule  = file("${path.module}/../../../azure-policies/require_tags.json")
   parameters = <<PARAMS
 {
@@ -13,7 +13,7 @@ resource "azurerm_policy_definition" "require_tag" {
     "defaultValue": "Owner",
     "metadata": {
       "displayName": "Tag Name",
-      "description": "Nombre de la etiqueta obligatoria en cada recurso"
+      "description": "Name of the mandatory label"
     }
   }
 }

@@ -1,18 +1,18 @@
 FROM python:3.13-slim
 
-# 1. Directorio de trabajo
+# Working directory
 WORKDIR /app
 
-# 2. Dependencias
+# Dependencies
 COPY app/requirements.txt dev-requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt  -r dev-requirements.txt
 
-# 3. Copia solo el código de tu aplicación
+# Copy only the app code
 COPY app/ .
 
-# 4. Expón el puerto
+# Port exposure
 EXPOSE 8000
 
-# 5. Comando por defecto
+# Default command
 CMD ["gunicorn", "--bind=0.0.0.0:8000", "main:app"]

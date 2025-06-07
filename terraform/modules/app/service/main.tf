@@ -19,8 +19,8 @@ resource "azurerm_linux_web_app" "app" {
     failed_request_tracing = true
     http_logs {
       file_system {
-        retention_in_mb   = 35            # Tamaño máx de logs en disco (MB) antes de rotar
-        retention_in_days = 1             # Días de retención de logs de HTTP en filesystem
+        retention_in_mb   = 35  
+        retention_in_days = 1
       }
     }
   }
@@ -35,7 +35,7 @@ resource "azurerm_linux_web_app" "app" {
     app_command_line  = "gunicorn --bind=0.0.0.0:8000 main:app"
 
     application_stack {
-      python_version = "3.13"
+      python_version = var.app_python_version
     }   
   }
 
@@ -47,7 +47,7 @@ resource "azurerm_linux_web_app" "app" {
   app_settings = {
     KEY_VAULT_URI                         = var.key_vault_uri
     SCM_DO_BUILD_DURING_DEPLOYMENT        = true
-    FLASK_ENV                             = "development"  
+    FLASK_ENV                             = var.app_env  
     AZURE_CLIENT_ID                       = data.azurerm_user_assigned_identity.app_msi.client_id
     APPLICATIONINSIGHTS_CONNECTION_STRING = var.connection_string
     APPINSIGHTS_INSTRUMENTATIONKEY        = var.instrumentation_key

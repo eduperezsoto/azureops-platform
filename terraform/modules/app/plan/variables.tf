@@ -15,13 +15,13 @@ variable "resource_group_name" {
 }
 
 variable "sku_name" {
-  description = "The SKU for the plan."
+  description = "The SKU for the plan"
   type        = string
   default     = "B1"
 }
 
 variable "os_type" {
-  description = "The O/S type for the App Services to be hosted in this plan."
+  description = "The O/S type for the App Services to be hosted in this plan"
   type        = string
   default     = "Linux"
 }
