@@ -16,7 +16,6 @@ build/
 
 # Logs and reports
 logs/
-tests_results/
 *.log
 zap_report.html
 

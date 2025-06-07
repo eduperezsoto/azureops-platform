@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  prep:
+  build-and-test:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}  
@@ -52,7 +52,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   iac_scan:
-    needs: prep
+    needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
       contents: read # for actions/checkout to fetch code
@@ -187,43 +187,3 @@ jobs:
           path: |
             artifacts/zap_report.html
             artifacts/zap_report.json
-
-  # metrics:
-  #   needs: [deploy, dast]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #           fetch-depth: 0 
-
-  #     - name: Create artifacts directory
-  #       run: mkdir -p artifacts
-
-  #     - name: Login to Azure for metrics
-  #       uses: azure/login@v2
-  #       with:
-  #         creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-  #     - name: Install pandas for metrics
-  #       run: pip install pandas
-
-  #     - name: Collect all metrics
-  #       run: python3 scripts/collect_metrics.py | tee artifacts/metrics.log
-
-  #     - name: Upload metrics artifacts
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: metrics-logs
-  #         path: |
-  #           artifacts/metrics.log
-  #           artifacts/metrics.csv
-
-  #     - name: Check Azure Policy compliance
-  #       run: az policy state list --resource-group ${{ vars.RESOURCE_GROUP_NAME }} | tee artifacts/policy_compliance.json
-
-  #     - name: Upload policy compliance
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: policy-compliance
-  #         path: artifacts/policy_compliance.json

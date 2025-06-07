@@ -49,3 +49,16 @@ resource "azurerm_resource_group_policy_assignment" "assign_rg_allowed_locations
 }
 PARAMS
 }
+
+
+# ISO/IEC 27001:2013
+resource "azurerm_resource_group_policy_assignment" "iso27001_initiative" {
+  name                 = "ISO 27001 Initiative"
+  resource_group_id    = var.resource_group_id
+  policy_definition_id = "/providers/Microsoft.Authorization/policySetDefinitions/89c6cddc-1c73-4ac1-b19c-54d1a15a42f2"
+  location             = var.location
+
+  identity {
+    type = "SystemAssigned"
+  }
+}

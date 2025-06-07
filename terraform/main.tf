@@ -37,6 +37,7 @@ data "azurerm_key_vault" "kv_base" {
 module "azure_policy" {
   source         = "./modules/policy"
   resource_group_id = azurerm_resource_group.rg.id
+  location = var.location
 }
 
 
