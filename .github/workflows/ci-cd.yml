@@ -71,7 +71,7 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           format: lovely,sarif
-          working_directory: terraform/
+          working_directory: terraform
           additional_args: --out artifacts/tfsec_results
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
