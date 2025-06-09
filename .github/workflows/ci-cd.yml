@@ -7,52 +7,52 @@ on:
     branches: [master]
 
 jobs:
-  # build-and-test:
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}  
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0 
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}  
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.13'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
-  #     - name: Create artifacts directory
-  #       run: mkdir -p artifacts
+      - name: Create artifacts directory
+        run: mkdir -p artifacts
 
-  #     - name: Install dependencies
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install -r app/requirements.txt -r dev-requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt -r dev-requirements.txt
 
-  #     - name: Run unit tests with coverage
-  #       run: |
-  #         pytest tests/unit --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml:artifacts/coverage/coverage.xml --cov-report=html:artifacts/coverage --junit-xml=artifacts/unit_result.xml
-  #         junit2html artifacts/unit_result.xml artifacts/unit_result.html
+      - name: Run unit tests with coverage
+        run: |
+          pytest tests/unit --maxfail=1 --disable-warnings -q --cov=app --cov-report=xml:artifacts/coverage/coverage.xml --cov-report=html:artifacts/coverage --junit-xml=artifacts/unit_result.xml
+          junit2html artifacts/unit_result.xml artifacts/unit_result.html
 
-  #     - name: Run integration tests
-  #       run: |
-  #         pytest tests/integration --maxfail=1 --disable-warnings -q --cov=app --cov-append --cov-report=xml:artifacts/coverage/coverage.xml --cov-report=html:artifacts/coverage --junit-xml=artifacts/integration_result.xml
-  #         junit2html artifacts/integration_result.xml artifacts/integration_result.html
+      - name: Run integration tests
+        run: |
+          pytest tests/integration --maxfail=1 --disable-warnings -q --cov=app --cov-append --cov-report=xml:artifacts/coverage/coverage.xml --cov-report=html:artifacts/coverage --junit-xml=artifacts/integration_result.xml
+          junit2html artifacts/integration_result.xml artifacts/integration_result.html
 
-  #     - name: Upload artifacts logs
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: pytest-logs
-  #         path: artifacts
+      - name: Upload artifacts logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-logs
+          path: artifacts
 
-  #     - name: SonarQube Scan
-  #       uses: SonarSource/sonarqube-scan-action@v5
-  #       env:
-  #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   iac-scan:
-    # needs: build-and-test
+    needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
       contents: read # for actions/checkout to fetch code
@@ -67,134 +67,125 @@ jobs:
       - name: Create artifacts directory
         run: mkdir -p artifacts
 
-      - name: Run Trivy vulnerability scanner in IaC mode
-        uses: aquasecurity/trivy-action@0.31.0
+      - name: TFSec scan
+        uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          scan-type: 'config'
-          scan-ref: terraform
-          format: 'table'
-          output: 'artifacts/trivy_results.sarif'
-          exit-code: '1'
+          format: lovely,sarif
+          working_directory: terraform
+          additional_args: --out artifacts/tfsec_results
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-  #     - name: TFSec scan
-  #       uses: aquasecurity/tfsec-action@v1.0.3
-  #       with:
-  #         format: lovely,sarif
-  #         working_directory: terraform
-  #         additional_args: --out artifacts/tfsec_results
-  #         github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/
+          skip_check: CKV_AZURE_33,CKV_AZURE_88,CKV_AZURE_222,CKV_AZURE_17,CKV_AZURE_13,CKV_AZURE_211,CKV_AZURE_225,CKV_AZURE_212
+          output_format: cli,sarif
+          output_file_path: console,artifacts/checkov_results.sarif
 
-  #     - name: Checkov scan
-  #       uses: bridgecrewio/checkov-action@v12
-  #       with:
-  #         directory: terraform/
-  #         skip_check: CKV_AZURE_33,CKV_AZURE_88,CKV_AZURE_222,CKV_AZURE_17,CKV_AZURE_13,CKV_AZURE_211,CKV_AZURE_225,CKV_AZURE_212
-  #         output_format: cli,sarif
-  #         output_file_path: console,artifacts/checkov_results.sarif
+      - name: Upload tfec SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() || failure()
+        with:
+          sarif_file: artifacts/tfsec_results.sarif.json
 
-  #     - name: Upload tfec SARIF file
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       if: success() || failure()
-  #       with:
-  #         sarif_file: artifacts/tfsec_results.sarif.json
+      - name: Upload checkov SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        if: success() || failure()
+        with:
+          sarif_file: artifacts/checkov_results.sarif
 
-  #     - name: Upload checkov SARIF file
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       if: success() || failure()
-  #       with:
-  #         sarif_file: artifacts/checkov_results.sarif
+      - name: Upload IaC scan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: iac-scan-results
+          path: |
+            artifacts/tfsec_results.sarif.json
+            artifacts/checkov_results.sarif
 
-  #     - name: Upload IaC scan artifacts
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: iac-scan-results
-  #         path: |
-  #           artifacts/tfsec_results.sarif.json
-  #           artifacts/checkov_results.sarif
+  deploy:
+    needs: iac-scan
+    runs-on: ubuntu-latest
+    outputs: 
+      app_url: ${{ steps.set-url.outputs.app_url }}
+    env:
+      TF_VAR_resource_group_name: ${{ vars.RESOURCE_GROUP_NAME }}
+      TF_VAR_app_name:           ${{ vars.APP_NAME }}
+      ARM_SUBSCRIPTION_ID:        ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+            fetch-depth: 0 
 
-  # deploy:
-  #   needs: iac-scan
-  #   runs-on: ubuntu-latest
-  #   outputs: 
-  #     app_url: ${{ steps.set-url.outputs.app_url }}
-  #   env:
-  #     TF_VAR_resource_group_name: ${{ vars.RESOURCE_GROUP_NAME }}
-  #     TF_VAR_app_name:           ${{ vars.APP_NAME }}
-  #     ARM_SUBSCRIPTION_ID:        ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #           fetch-depth: 0 
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-  #     - name: Login to Azure
-  #       uses: azure/login@v2
-  #       with:
-  #         creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
 
-  #     - name: Setup Terraform
-  #       uses: hashicorp/setup-terraform@v2
-  #       with:
-  #         terraform_wrapper: false
+      - name: Terraform Init
+        run: terraform -chdir=terraform init -input=false
 
-  #     - name: Terraform Init
-  #       run: terraform -chdir=terraform init -input=false
+      - name: Terraform Validate
+        run: terraform -chdir=terraform validate
 
-  #     - name: Terraform Validate
-  #       run: terraform -chdir=terraform validate
+      - name: Terraform Plan
+        run: terraform -chdir=terraform plan -out=tfplan -input=false
 
-  #     - name: Terraform Plan
-  #       run: terraform -chdir=terraform plan -out=tfplan -input=false
+      - name: Terraform Apply
+        run: terraform -chdir=terraform apply -input=false -auto-approve tfplan
 
-  #     - name: Terraform Apply
-  #       run: terraform -chdir=terraform apply -input=false -auto-approve tfplan
+      - name: Set app_url output
+        id: set-url
+        run: |
+          APP_URL=$(terraform -chdir=terraform output -raw app_url)
+          echo ">>> APP_URL obtenida: ${APP_URL}"
+          echo "app_url=${APP_URL}" >> "$GITHUB_OUTPUT"
 
-  #     - name: Set app_url output
-  #       id: set-url
-  #       run: |
-  #         APP_URL=$(terraform -chdir=terraform output -raw app_url)
-  #         echo ">>> APP_URL obtenida: ${APP_URL}"
-  #         echo "app_url=${APP_URL}" >> "$GITHUB_OUTPUT"
+      - name: Wait for Kudu/SCM to stabilize
+        run: sleep 45
 
-  #     - name: Wait for Kudu/SCM to stabilize
-  #       run: sleep 45
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3.0.1
+        with:
+          app-name: ${{ vars.APP_NAME }}
+          package: './app'
 
-  #     - name: Deploy to Azure App Service
-  #       uses: azure/webapps-deploy@v3.0.1
-  #       with:
-  #         app-name: ${{ vars.APP_NAME }}
-  #         package: './app'
+  dast:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
-  # dast:
-  #   needs: deploy
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0 
+      - name: Create artifacts directory
+        run: |
+          mkdir -p artifacts
+          chmod 0777 artifacts
 
-  #     - name: Create artifacts directory
-  #       run: |
-  #         mkdir -p artifacts
-  #         chmod 0777 artifacts
+      - name: OWASP ZAP full scan
+        run: |
+          docker run --rm \
+            -v $PWD/artifacts:/zap/wrk/:rw \
+            -t zaproxy/zap-stable \
+            zap-full-scan.py \
+              -t ${{ needs.deploy.outputs.app_url }} \
+              -r zap_report.html \
+              -J zap_report.json \
+              -I
 
-  #     - name: OWASP ZAP full scan
-  #       run: |
-  #         docker run --rm \
-  #           -v $PWD/artifacts:/zap/wrk/:rw \
-  #           -t zaproxy/zap-stable \
-  #           zap-full-scan.py \
-  #             -t ${{ needs.deploy.outputs.app_url }} \
-  #             -r zap_report.html \
-  #             -J zap_report.json \
-  #             -I
-
-  #     - name: Upload ZAP report
-  #       uses: actions/upload-artifact@v4
-  #       if: success() || failure()
-  #       with:
-  #         name: zap-report
-  #         path: |
-  #           artifacts/zap_report.html
-  #           artifacts/zap_report.json
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: zap-report
+          path: |
+            artifacts/zap_report.html
+            artifacts/zap_report.json
