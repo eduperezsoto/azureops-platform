@@ -23,6 +23,7 @@ zap_report.html
 terraform/.terraform/
 terraform/*.tfstate*
 terraform/crash.log
+terraform/.terraform.lock.hcl
 
 # Ansible facts/retry
 ansible_facts/

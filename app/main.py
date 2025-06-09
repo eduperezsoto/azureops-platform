@@ -35,7 +35,7 @@ if Config.CONNECTION_STRING:
     trace_exporter = AzureMonitorTraceExporter(connection_string=Config.CONNECTION_STRING)
     trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(trace_exporter))
 else:
-    app.logger.info(f"Open telemetry has not been configured because no connection string has been specified.")
+    app.logger.info("Open telemetry has not been configured because no connection string has been specified.")
 
 
 def fetch_secret(name: str):
