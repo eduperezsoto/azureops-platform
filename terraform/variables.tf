@@ -4,11 +4,6 @@ variable "location" {
   default     = "West Europe"
 }
 
-variable "resource_group_name" {
-  description = "Name of the resource group"
-  type        = string
-}
-
 variable "infra_base_resource_group_name" {
   description = "Name of the resource group"
   type        = string

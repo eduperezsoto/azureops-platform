@@ -43,7 +43,7 @@ jobs:
       - name: Upload artifacts logs
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-logs
+          name: pytest-reports
           path: artifacts
 
       - name: SonarQube Scan
@@ -55,9 +55,9 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,7 +98,7 @@ jobs:
       - name: Upload IaC scan artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: iac-scan-results
+          name: iac-scan-reports
           path: |
             artifacts/tfsec_results.sarif.json
             artifacts/checkov_results.sarif
@@ -109,8 +109,7 @@ jobs:
     outputs: 
       app_url: ${{ steps.set-url.outputs.app_url }}
     env:
-      TF_VAR_resource_group_name: ${{ vars.RESOURCE_GROUP_NAME }}
-      TF_VAR_app_name:           ${{ vars.APP_NAME }}
+      TF_VAR_app_name:            ${{ vars.APP_NAME }}
       ARM_SUBSCRIPTION_ID:        ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
     steps:
       - name: Checkout

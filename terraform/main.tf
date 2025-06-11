@@ -18,7 +18,7 @@ data "azurerm_subscription" "current" {}
 
 ####### RESOURCE GROUP #######
 resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
+  name     = "${var.app_name}-rg" 
   location = var.location
   tags = {
     Owner = var.owner_tag
