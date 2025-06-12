@@ -1,18 +1,22 @@
 name: CI/CD DevSecOps
 
 on:
-  push:
-    branches: [master]
   pull_request:
     branches: [master]
+    types: [opened, synchronize]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    if:  >
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && github.event.pull_request.base.ref == 'master')
     env:
       PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}  
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 
@@ -46,7 +50,7 @@ jobs:
           name: pytest-reports
           path: artifacts
 
-      - name: SonarQube Scan
+      - name: Run SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -59,7 +63,7 @@ jobs:
       security-events: write
       actions: read
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 
@@ -67,7 +71,7 @@ jobs:
       - name: Create artifacts directory
         run: mkdir -p artifacts
 
-      - name: TFSec scan
+      - name: Run TFSec scan
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           format: lovely,sarif
@@ -75,7 +79,7 @@ jobs:
           additional_args: --out artifacts/tfsec_results
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkov scan
+      - name: Run Checkov scan
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: terraform/
@@ -106,13 +110,17 @@ jobs:
   deploy:
     needs: iac-scan
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'pull_request_review' &&
+      github.event.review.state == 'approved' &&
+      github.event.pull_request.base.ref == 'master'
     outputs: 
       app_url: ${{ steps.set-url.outputs.app_url }}
     env:
       TF_VAR_app_name:            ${{ vars.APP_NAME }}
       ARM_SUBSCRIPTION_ID:        ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
             fetch-depth: 0 
@@ -159,7 +167,7 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 
@@ -169,7 +177,7 @@ jobs:
           mkdir -p artifacts
           chmod 0777 artifacts
 
-      - name: OWASP ZAP full scan
+      - name: Run OWASP ZAP full scan
         run: |
           docker run --rm \
             -v $PWD/artifacts:/zap/wrk/:rw \
