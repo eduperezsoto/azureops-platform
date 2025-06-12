@@ -15,7 +15,7 @@ Este repositorio contiene el proyecto de TFM “Implementación de una Estrategi
 2. [Estructura del proyecto](#-estructura-del-proyecto)  
 3. [Desarrollo y pruebas locales](#-desarrollo-y-pruebas-locales)  
 4. [Pipeline CI/CD](#-pipeline-cicd)  
-
+5. [Flujo de trabajo en GitHub](#-flujo-de-trabajo-en-github)  
 
 ---
 
@@ -53,7 +53,6 @@ Este repositorio contiene el proyecto de TFM “Implementación de una Estrategi
 ├── dev-requirements.txt # Dependencias de pruebas  
 ├── sonar-project.properties # Configuración SonarCloud  
 └── README.md # Esta guía  
-
 
 ---
 
@@ -113,5 +112,29 @@ El workflow .github/workflows/ci-cd.yml define cuatro jobs:
 - AZURE_CREDENTIALS → JSON del Service Principal
 - SONAR_TOKEN → Token SonarCloud
 - APP_NAME → Nombre de la aplicación en Azure
+
+---
+
+## 🔀 Flujo de trabajo en GitHub
+
+1. **Creación de la rama feature**  
+   - Parte siempre de `master` (rama protegida).  
+   - Nombre sugerido: `feature/mi-nueva-funcionalidad`.
+
+2. **Desarrollo y commits locales**  
+   - Implementa tu código.
+   - Haz _commits_ atómicos y claros.
+
+3. **Push y Pull Request**  
+   - `git push origin feature/mi-nueva-funcionalidad`  
+   - Abre un **Pull Request** contra master → se dispara el workflow de CI/CD.
+
+4. **Revisión de código**  
+   - La regla de protección de rama exige al menos **1 aprobación** y que todos los checks del workflow pasen con exito.
+
+6. **Aprobación y merge**  
+   - Una vez ejecutado todo el pipeline y aprobada la review:
+     - Se habilita el botón **Merge**.  
+     - Al fusionar, `feature/…` desaparece si usas “Delete branch”.
 
 ---
