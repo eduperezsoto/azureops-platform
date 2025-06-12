@@ -414,7 +414,7 @@ resource "azurerm_portal_dashboard" "dashboard" {
                     },
                     "timespan": {
                       "relative": {
-                        "duration": 2592000000
+                        "duration": 86400000
                       },
                       "showUTCTime": false,
                       "grain": 1
@@ -553,7 +553,7 @@ resource "azurerm_portal_dashboard" "dashboard" {
                     },
                     "timespan": {
                       "relative": {
-                        "duration": 2592000000
+                        "duration": 86400000
                       },
                       "showUTCTime": false,
                       "grain": 1
@@ -717,7 +717,7 @@ resource "azurerm_portal_dashboard" "dashboard" {
                     },
                     "timespan": {
                       "relative": {
-                        "duration": 2592000000
+                        "duration": 86400000
                       },
                       "showUTCTime": false,
                       "grain": 1
@@ -904,7 +904,7 @@ resource "azurerm_portal_dashboard" "dashboard" {
                     },
                     "timespan": {
                       "relative": {
-                        "duration": 2592000000
+                        "duration": 86400000
                       },
                       "showUTCTime": false,
                       "grain": 1
@@ -1011,7 +1011,7 @@ resource "azurerm_portal_dashboard" "dashboard" {
                     },
                     "timespan": {
                       "relative": {
-                        "duration": 2592000000
+                        "duration": 86400000
                       },
                       "showUTCTime": false,
                       "grain": 1
@@ -1065,124 +1065,6 @@ resource "azurerm_portal_dashboard" "dashboard" {
                       "disablePinning": true
                     }
                   }
-                }
-              }
-            }
-          }
-        },
-        "12": {
-          "position": {
-            "x": 0,
-            "y": 17,
-            "colSpan": 6,
-            "rowSpan": 4
-          },
-          "metadata": {
-            "inputs": [
-              {
-                "name": "sharedTimeRange",
-                "isOptional": true
-              },
-              {
-                "name": "options",
-                "value": {
-                  "chart": {
-                    "metrics": [
-                      {
-                        "resourceMetadata": {
-                          "id": "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Insights/components/${azurerm_application_insights.application_insights.name}"
-                        },
-                        "name": "requests/failed",
-                        "aggregationType": 1,
-                        "namespace": "microsoft.insights/components/kusto",
-                        "metricVisualization": {
-                          "displayName": "Failed requests"
-                        }
-                      }
-                    ],
-                    "title": "Failed requests",
-                    "titleKind": 2,
-                    "visualization": {
-                      "chartType": 2,
-                      "legendVisualization": {
-                        "isVisible": true,
-                        "position": 2,
-                        "hideHoverCard": false,
-                        "hideLabelNames": true
-                      },
-                      "axisVisualization": {
-                        "x": {
-                          "isVisible": true,
-                          "axisType": 2
-                        },
-                        "y": {
-                          "isVisible": true,
-                          "axisType": 1
-                        }
-                      }
-                    },
-                    "timespan": {
-                      "relative": {
-                        "duration": 86400000
-                      },
-                      "showUTCTime": false,
-                      "grain": 1
-                    }
-                  }
-                },
-                "isOptional": true
-              }
-            ],
-            "type": "Extension/HubsExtension/PartType/MonitorChartPart",
-            "settings": {
-              "content": {
-                "options": {
-                  "chart": {
-                    "metrics": [
-                      {
-                        "resourceMetadata": {
-                          "id": "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Insights/components/${azurerm_application_insights.application_insights.name}"
-                        },
-                        "name": "requests/failed",
-                        "aggregationType": 1,
-                        "namespace": "microsoft.insights/components/kusto",
-                        "metricVisualization": {
-                          "displayName": "Failed requests"
-                        }
-                      }
-                    ],
-                    "title": "Failed requests",
-                    "titleKind": 2,
-                    "visualization": {
-                      "chartType": 2,
-                      "legendVisualization": {
-                        "isVisible": true,
-                        "position": 2,
-                        "hideHoverCard": false,
-                        "hideLabelNames": true
-                      },
-                      "axisVisualization": {
-                        "x": {
-                          "isVisible": true,
-                          "axisType": 2
-                        },
-                        "y": {
-                          "isVisible": true,
-                          "axisType": 1
-                        }
-                      },
-                      "disablePinning": true
-                    }
-                  }
-                }
-              }
-            },
-            "filters": {
-              "MsPortalFx_TimeRange": {
-                "model": {
-                  "format": "local",
-                  "granularity": "auto",
-                  "relative": "1440m"
                 }
               }
             }
